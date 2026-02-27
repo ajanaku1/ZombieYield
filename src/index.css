@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/* Custom theme configuration */
+@theme {
+  --color-zombie-black: #0a0a0a;
+  --color-zombie-dark: #121212;
+  --color-zombie-gray: #1a1a1a;
+  --color-zombie-green: #39ff14;
+  --color-zombie-green-dim: rgba(57, 255, 20, 0.1);
+  --color-zombie-green-glow: rgba(57, 255, 20, 0.3);
+  
+  --shadow-neon: 0 0 10px rgba(57, 255, 20, 0.5), 0 0 20px rgba(57, 255, 20, 0.3);
+  --shadow-neon-sm: 0 0 5px rgba(57, 255, 20, 0.4), 0 0 10px rgba(57, 255, 20, 0.2);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #121212;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #39ff14;
+}
+
+/* Base styles */
+body {
+  background-color: var(--color-zombie-black);
+  color: white;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom utilities */
+.text-glow {
+  text-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+}
+
+.card-glow {
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+}
+
+.card-glow-hover:hover {
+  box-shadow: 0 0 30px rgba(57, 255, 20, 0.2);
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* Wallet adapter overrides */
+.wallet-adapter-button {
+  background-color: var(--color-zombie-green) !important;
+  color: var(--color-zombie-black) !important;
+  font-weight: bold !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s !important;
+  height: 2.5rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+.wallet-adapter-button:hover {
+  box-shadow: var(--shadow-neon);
+  transform: translateY(-1px);
+}
+
+.wallet-adapter-button-trigger {
+  background-color: var(--color-zombie-green) !important;
+  color: var(--color-zombie-black) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background-color: var(--color-zombie-dark) !important;
+  border-radius: 1rem !important;
+  border: 1px solid rgba(57, 255, 20, 0.2) !important;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.8) !important;
+}
+
+.wallet-adapter-modal-title {
+  color: white !important;
+  font-size: 1.25rem !important;
+  font-weight: bold !important;
+}
+
+.wallet-adapter-modal-list {
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+
+.wallet-adapter-modal-list li {
+  border-color: rgba(57, 255, 20, 0.1) !important;
+  background-color: transparent !important;
+  margin: 0 !important;
+}
+
+.wallet-adapter-modal-list li:hover {
+  background-color: rgba(57, 255, 20, 0.08) !important;
+  border-color: rgba(57, 255, 20, 0.3) !important;
+}
+
+.wallet-adapter-modal-list li button {
+  color: white !important;
+  background-color: transparent !important;
+}
+
+.wallet-adapter-modal-list li button:hover {
+  color: var(--color-zombie-green) !important;
+  background-color: transparent !important;
+}
+
+.wallet-adapter-modal-list li button span {
+  color: white !important;
+  background-color: transparent !important;
+}
+
+.wallet-adapter-modal-list li button:hover span {
+  color: var(--color-zombie-green) !important;
+  background-color: transparent !important;
+}
+
+/* Remove all default backgrounds */
+.wallet-adapter-modal-list li::before,
+.wallet-adapter-modal-list li::after {
+  background-color: transparent !important;
+  display: none !important;
+}
+
+.wallet-adapter-modal-list li > *,
+.wallet-adapter-modal-list li > *::before,
+.wallet-adapter-modal-list li > *::after {
+  background-color: transparent !important;
+}
+
+.wallet-adapter-button-start {
+  color: var(--color-zombie-black) !important;
+  background-color: transparent !important;
+}
+
+/* Force transparent backgrounds on all nested elements */
+.wallet-adapter-modal-list * {
+  background-color: transparent !important;
+}
+
+.wallet-adapter-modal-list *:hover {
+  background-color: rgba(57, 255, 20, 0.08) !important;
+}
