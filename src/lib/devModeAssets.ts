@@ -180,19 +180,22 @@ export function getTierDescription(solBalance: number): string {
 }
 
 /**
- * Check if DEV mode mock injection should be enabled
+ * Check if demo asset injection should be enabled.
  *
- * @returns true if in development mode
+ * Always enabled — this is a hackathon demo app that needs to show
+ * functionality even when the wallet holds no real allowlisted tokens.
+ * Set VITE_DISABLE_DEMO_ASSETS=true to disable.
  */
 export function isDevModeEnabled(): boolean {
-  return import.meta.env.DEV;
+  if (import.meta.env.VITE_DISABLE_DEMO_ASSETS === 'true') return false;
+  return true;
 }
 
 /**
  * DEV mode configuration
  */
 export const DEV_MODE_CONFIG = {
-  enabled: import.meta.env.DEV,
+  enabled: isDevModeEnabled(),
   injectMockAssets: true,
-  logToConsole: true,
+  logToConsole: import.meta.env.DEV,
 };
