@@ -68,14 +68,12 @@ export class TorqueRewardsAdapter implements RewardsAdapter {
   }
 
   /**
-   * Claim rewards.
-   * In the real flow, claiming is handled by Torque journey completion.
-   * This provides a local fallback for the existing claim UI.
+   * Claim rewards (local fallback).
+   * Used when Torque is unreachable or offer creation failed.
    */
   private _lastPointsData: UserPointsData | null = null;
 
   async claimRewards(_wallet: string): Promise<ClaimResult> {
-    // Simulate claim — real claims go through Torque offer journeys
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const claimedAmount = this._lastPointsData?.availableToClaim ?? 0;
@@ -83,9 +81,50 @@ export class TorqueRewardsAdapter implements RewardsAdapter {
     return {
       success: true,
       claimedAmount,
-      transactionSignature: `torque_claim_${Date.now()}`,
+      transactionSignature: `local_claim_${Date.now()}`,
       timestamp: Date.now(),
     };
+  }
+
+  /**
+   * Claim rewards via Torque SDK.
+   * Executes the offer action through Torque's journey system.
+   *
+   * @param wallet - Wallet address
+   * @param offerId - The Torque offer ID
+   * @param startOfferFn - Function to start the offer journey
+   * @param executeActionFn - Function to execute the claim action
+   * @returns ClaimResult with Torque transaction signature
+   */
+  async claimViaTorque(
+    wallet: string,
+    offerId: string,
+    startOfferFn: (offerId: string) => void,
+    executeActionFn: (params: { offerId: string; index: number }) => Promise<string>,
+  ): Promise<ClaimResult> {
+    const claimedAmount = this._lastPointsData?.availableToClaim ?? 0;
+
+    try {
+      // Start the offer journey
+      startOfferFn(offerId);
+
+      // Small delay to let the journey initialize
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Execute the claim action (index 0 = first requirement)
+      const signature = await executeActionFn({ offerId, index: 0 });
+
+      return {
+        success: true,
+        claimedAmount,
+        transactionSignature: signature || `torque_${Date.now()}`,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.warn('[TorqueAdapter] Torque claim failed, falling back to local:', error);
+      // Fallback to local claim
+      return this.claimRewards(wallet);
+    }
   }
 }
 

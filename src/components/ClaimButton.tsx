@@ -1,8 +1,8 @@
 /**
  * ClaimButton Component
  *
- * Simple once-per-day claim. Users claim all their zombie asset points
- * in one action, then wait 24 hours before claiming again.
+ * Claims zombie asset points through Torque SDK when available,
+ * with graceful fallback to local claims.
  *
  * @module components/ClaimButton
  */
@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { rewardsClient } from '../lib/rewards';
-import { useTorque } from '@torque-labs/react';
+import { useZombieClaim } from '../hooks/useZombieClaim';
 import type { ZombieAsset, ClaimHistoryEntry } from '../types';
 
 interface ClaimButtonProps {
@@ -33,7 +33,13 @@ export function ClaimButton({
   const { addToast, addClaimEntry, lastClaimTimestamp } = useAppStore();
   const [claimState, setClaimState] = useState<ClaimState>('idle');
   const [countdown, setCountdown] = useState<string | null>(null);
-  const { isAuthenticated: torqueAuthenticated } = useTorque();
+
+  const {
+    claimViaTorque,
+    isTorqueClaim,
+    journeyStatus,
+    fallbackReason,
+  } = useZombieClaim();
 
   // Cooldown check
   const now = Date.now();
@@ -82,7 +88,15 @@ export function ClaimButton({
     setClaimState('loading');
 
     try {
-      const result = await rewardsClient.claimRewards(publicKey.toString());
+      let result;
+
+      if (isTorqueClaim) {
+        // Route through Torque SDK
+        result = await claimViaTorque(publicKey.toString(), claimablePoints);
+      } else {
+        // Local fallback
+        result = await rewardsClient.claimRewards(publicKey.toString());
+      }
 
       if (result.success) {
         setClaimState('success');
@@ -93,11 +107,15 @@ export function ClaimButton({
           pointsClaimed: claimablePoints,
           timestamp: Date.now(),
           txSignature: result.transactionSignature,
-          claimType: 'points',
+          claimType: isTorqueClaim ? 'torque_offer' : 'points',
         };
         addClaimEntry(entry);
 
-        addToast(`Claimed ${claimablePoints} pts from ${zombieAssets.length} zombie asset${zombieAssets.length > 1 ? 's' : ''}!`, 'success');
+        const via = isTorqueClaim ? ' via Torque' : '';
+        addToast(
+          `Claimed ${claimablePoints} pts from ${zombieAssets.length} zombie asset${zombieAssets.length > 1 ? 's' : ''}${via}!`,
+          'success'
+        );
         onClaimSuccess?.(claimablePoints);
 
         setTimeout(() => setClaimState('idle'), 2000);
@@ -147,7 +165,7 @@ export function ClaimButton({
             </svg>
           )}
         </div>
-        <div>
+        <div className="flex-1">
           <h3 className="font-semibold text-white">
             {isSuccess ? 'Claimed!' : isError ? 'Claim Failed' : onCooldown ? 'On Cooldown' : 'Ready to Claim'}
           </h3>
@@ -156,9 +174,28 @@ export function ClaimButton({
               ? `Come back in ${countdown || '...'}`
               : `${claimablePoints.toLocaleString()} pts from ${zombieAssets.length} asset${zombieAssets.length > 1 ? 's' : ''}`}
           </p>
-          {torqueAuthenticated && (
-            <p className="text-xs text-zombie-green mt-0.5">Torque connected</p>
-          )}
+          {/* Torque integration indicator */}
+          <div className="flex items-center gap-2 mt-1">
+            {isTorqueClaim ? (
+              <span className="inline-flex items-center gap-1 text-xs text-zombie-green">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Powered by Torque
+              </span>
+            ) : (
+              <span className="text-xs text-gray-600">Local claim</span>
+            )}
+            {journeyStatus && isTorqueClaim && (
+              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                journeyStatus === 'DONE' ? 'bg-green-500/20 text-green-400'
+                  : journeyStatus === 'FAILED' || journeyStatus === 'INVALID' ? 'bg-red-500/20 text-red-400'
+                  : 'bg-zombie-green/20 text-zombie-green'
+              }`}>
+                {journeyStatus}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -184,7 +221,7 @@ export function ClaimButton({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Claiming...
+            Claiming{isTorqueClaim ? ' via Torque' : ''}...
           </>
         ) : isSuccess ? (
           <>
@@ -209,6 +246,13 @@ export function ClaimButton({
           </>
         )}
       </button>
+
+      {/* Fallback reason (debug info) */}
+      {fallbackReason && !isTorqueClaim && (
+        <p className="text-xs text-gray-600 mt-2 text-center">
+          {fallbackReason}
+        </p>
+      )}
     </div>
   );
 }

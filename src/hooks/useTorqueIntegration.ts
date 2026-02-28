@@ -18,6 +18,7 @@ import {
   useOffer,
   useCurrentUser,
   useSocialConnect,
+  useCreateOffer,
 } from '@torque-labs/react';
 
 /**
@@ -99,6 +100,16 @@ export function useTorqueIntegration(activeOfferId?: string, activeActionIndex?:
     isLoading: socialConnectLoading,
     error: socialConnectError,
   } = useSocialConnect();
+
+  // Create offer mutation
+  const createOfferMutation = useCreateOffer({
+    onSuccess: (data) => {
+      console.log('[Torque] Offer created:', data.id);
+    },
+    onError: (error) => {
+      console.warn('[Torque] Failed to create offer:', error.message);
+    },
+  });
 
   // Get the user's journey (first one if exists)
   const journey = useMemo(() => {
@@ -188,6 +199,9 @@ export function useTorqueIntegration(activeOfferId?: string, activeActionIndex?:
     connectDiscord,
     socialConnectLoading,
     socialConnectError,
+
+    // Create offer
+    createOffer: createOfferMutation,
 
     // General
     isLoading,
