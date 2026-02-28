@@ -74,8 +74,6 @@ export class TorqueRewardsAdapter implements RewardsAdapter {
   private _lastPointsData: UserPointsData | null = null;
 
   async claimRewards(_wallet: string): Promise<ClaimResult> {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
     const claimedAmount = this._lastPointsData?.availableToClaim ?? 0;
 
     return {

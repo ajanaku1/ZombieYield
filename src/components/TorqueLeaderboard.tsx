@@ -11,17 +11,13 @@ import { useMemo } from 'react';
 import { useTorque, useOfferConversions, useOfferAnalytics } from '@torque-labs/react';
 import { useZombieClaim } from '../hooks/useZombieClaim';
 import { useAppStore } from '../store/appStore';
+import { shortenAddress } from '../lib/utils';
 
 interface LeaderboardEntry {
   rank: number;
   wallet: string;
   points: number;
   claims: number;
-}
-
-function truncateWallet(address: string): string {
-  if (address.length <= 10) return address;
-  return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
 export function TorqueLeaderboard() {
@@ -183,7 +179,7 @@ export function TorqueLeaderboard() {
 
                 {/* Wallet */}
                 <span className="text-sm text-white font-mono">
-                  {truncateWallet(entry.wallet)}
+                  {shortenAddress(entry.wallet)}
                 </span>
 
                 {/* Points */}

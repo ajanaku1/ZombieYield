@@ -15,11 +15,6 @@ interface WalletState {
   shortAddress: string | null;
 }
 
-interface TorqueAuthState {
-  isAuthenticated: boolean;
-  pubkey?: string;
-}
-
 interface AppState {
   // Wallet state
   wallet: WalletState;
@@ -38,9 +33,6 @@ interface AppState {
 
   // Per-asset claim cooldowns (persisted) — maps mint address → last claim timestamp
   claimedAssetTimestamps: Record<string, number>;
-
-  // Torque auth state (persisted)
-  torqueAuthState: TorqueAuthState;
 
   // Cached ZombieYield Torque project & offer IDs (persisted)
   torqueProjectId: string | null;
@@ -61,7 +53,6 @@ interface AppState {
   setError: (error: string | null) => void;
   addClaimEntry: (entry: ClaimHistoryEntry) => void;
   markAssetsClaimed: (mints: string[]) => void;
-  setTorqueAuthState: (state: TorqueAuthState) => void;
   setTorqueProjectId: (id: string | null) => void;
   setTorqueClaimOfferId: (id: string | null) => void;
   reset: () => void;
@@ -80,7 +71,6 @@ const initialState = {
   claimHistory: [] as ClaimHistoryEntry[],
   lastClaimTimestamp: null as number | null,
   claimedAssetTimestamps: {} as Record<string, number>,
-  torqueAuthState: { isAuthenticated: false } as TorqueAuthState,
   torqueProjectId: null as string | null,
   torqueClaimOfferId: null as string | null,
   toasts: [] as Toast[],
@@ -159,10 +149,6 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      setTorqueAuthState: (authState) => {
-        set({ torqueAuthState: authState });
-      },
-
       setTorqueProjectId: (id) => {
         set({ torqueProjectId: id });
       },
@@ -183,7 +169,6 @@ export const useAppStore = create<AppState>()(
         claimHistory: state.claimHistory,
         lastClaimTimestamp: state.lastClaimTimestamp,
         claimedAssetTimestamps: state.claimedAssetTimestamps,
-        torqueAuthState: state.torqueAuthState,
         torqueProjectId: state.torqueProjectId,
         torqueClaimOfferId: state.torqueClaimOfferId,
       }),
@@ -191,67 +176,9 @@ export const useAppStore = create<AppState>()(
   )
 );
 
-const CLAIM_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-/**
- * Get claimable assets — those not claimed in the last 24 hours
- */
-export function getClaimableAssets(
-  assets: ZombieAsset[],
-  claimedTimestamps: Record<string, number>
-): ZombieAsset[] {
-  const now = Date.now();
-  return assets.filter((asset) => {
-    const lastClaimed = claimedTimestamps[asset.mint];
-    if (!lastClaimed) return true; // never claimed
-    return now - lastClaimed >= CLAIM_COOLDOWN_MS;
-  });
-}
-
-/**
- * Get the earliest time any on-cooldown asset becomes claimable again.
- * Returns null if all assets are claimable.
- */
-export function getNextClaimableTime(
-  assets: ZombieAsset[],
-  claimedTimestamps: Record<string, number>
-): number | null {
-  const now = Date.now();
-  let earliest: number | null = null;
-
-  for (const asset of assets) {
-    const lastClaimed = claimedTimestamps[asset.mint];
-    if (lastClaimed && now - lastClaimed < CLAIM_COOLDOWN_MS) {
-      const unlocksAt = lastClaimed + CLAIM_COOLDOWN_MS;
-      if (earliest === null || unlocksAt < earliest) {
-        earliest = unlocksAt;
-      }
-    }
-  }
-  return earliest;
-}
-
 /**
  * Get total points claimed from history
  */
 export function getTotalPointsClaimed(history: ClaimHistoryEntry[]): number {
   return history.reduce((sum, entry) => sum + entry.pointsClaimed, 0);
-}
-
-/**
- * Utility: Format wallet address
- */
-export function formatAddress(address: string, chars = 4): string {
-  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
-}
-
-/**
- * Utility: Check if address is valid Solana address
- */
-export function isValidSolanaAddress(address: string): boolean {
-  try {
-    return address.length >= 32 && address.length <= 44;
-  } catch {
-    return false;
-  }
 }

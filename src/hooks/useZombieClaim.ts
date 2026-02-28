@@ -55,6 +55,9 @@ export function useZombieClaim() {
     enabled: isAuthenticated,
   });
 
+  // Track the created offer ID via ref so chained callbacks always have the latest value
+  const createdOfferIdRef = useRef<string | null>(null);
+
   // Deploy distributor on-chain after adding
   const deployDistributorMutation = useDeployDistributor({
     onSuccess: (data) => {
@@ -70,10 +73,11 @@ export function useZombieClaim() {
     onSuccess: (data) => {
       console.log('[ZombieClaim] POINTS distributor added:', data.id);
 
-      // Deploy the distributor on-chain so rewards are actually distributed
-      if (offerId) {
+      // Use ref to get the offer ID (avoids stale closure from state)
+      const oid = createdOfferIdRef.current;
+      if (oid) {
         deployDistributorMutation.mutate({
-          offerId,
+          offerId: oid,
           distributorId: data.id,
         } as any);
       }
@@ -87,6 +91,7 @@ export function useZombieClaim() {
   const createOfferMutation = useCreateOffer({
     onSuccess: (data) => {
       console.log('[ZombieClaim] Created ZombieYield offer:', data.id);
+      createdOfferIdRef.current = data.id;
       setOfferId(data.id);
       setTorqueClaimOfferId(data.id);
       setIsTorqueClaim(true);

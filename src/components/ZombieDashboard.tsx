@@ -20,20 +20,7 @@ import { TorqueUserProfile } from './TorqueUserProfile';
 import { ClaimHistory } from './ClaimHistory';
 import { TorqueLeaderboard } from './TorqueLeaderboard';
 import { useZombieClaim } from '../hooks/useZombieClaim';
-
-/**
- * Format time ago from timestamp
- */
-function formatTimeAgo(timestamp: number | null): string {
-  if (!timestamp) return '';
-
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-
-  if (seconds < 5) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  return `${Math.floor(seconds / 3600)}h ago`;
-}
+import { formatTimeAgo } from '../lib/utils';
 
 /**
  * Main dashboard component

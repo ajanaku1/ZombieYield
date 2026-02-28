@@ -8,13 +8,7 @@
  */
 
 import type { ZombieAsset } from '../types';
-
-/**
- * Shorten a Solana address for display
- */
-function shortenAddress(address: string, chars = 4): string {
-  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
-}
+import { shortenAddress } from '../lib/utils';
 
 /**
  * Table row props

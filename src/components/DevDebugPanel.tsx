@@ -13,13 +13,7 @@ import { useScanner } from '../hooks/useScanner';
 import { getConnectionConfig, getNetworkColor } from '../lib/solanaConnection';
 import { getAdapterInfo } from '../lib/rewards';
 import { useTorque, useOffers } from '@torque-labs/react';
-
-/**
- * Format address for display
- */
-function shortenAddress(address: string, chars = 4): string {
-  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
-}
+import { shortenAddress } from '../lib/utils';
 
 /**
  * Format timestamp
