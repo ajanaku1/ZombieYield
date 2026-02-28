@@ -235,9 +235,6 @@ export function useZombieClaim() {
             // Start the offer journey
             await startOfferAsync({ offerId });
 
-            // Small delay to let journey initialize
-            await new Promise((resolve) => setTimeout(resolve, 300));
-
             // Execute the claim action at index 1 (second requirement)
             const signature = await torque.offers.actions.executeAction(offerId, 1);
 

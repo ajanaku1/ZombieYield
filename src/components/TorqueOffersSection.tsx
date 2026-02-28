@@ -37,7 +37,6 @@ export function TorqueOffersSection() {
   const {
     torqueOfferId: zombieOfferId,
     journeyStatus: zombieJourneyStatus,
-    journey: zombieJourney,
     isTorqueClaim,
     scanEventFired,
   } = useZombieClaim();
@@ -114,7 +113,6 @@ export function TorqueOffersSection() {
         <SectionHeader badge="Connected" />
         <ZombieYieldCampaignCard
           journeyStatus={zombieJourneyStatus}
-          journey={zombieJourney}
           isTorqueClaim={isTorqueClaim}
           scanEventFired={scanEventFired}
         />
@@ -138,7 +136,6 @@ export function TorqueOffersSection() {
       {!zombieOfferInList && (
         <ZombieYieldCampaignCard
           journeyStatus={zombieJourneyStatus}
-          journey={zombieJourney}
           isTorqueClaim={isTorqueClaim}
           scanEventFired={scanEventFired}
         />
@@ -384,7 +381,6 @@ function ZombieYieldCampaignCard({
   scanEventFired,
 }: {
   journeyStatus: string | null;
-  journey: any;
   isTorqueClaim: boolean;
   scanEventFired: boolean;
 }) {

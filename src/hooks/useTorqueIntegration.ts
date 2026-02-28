@@ -18,9 +18,6 @@ import {
   useOffer,
   useCurrentUser,
   useSocialConnect,
-  useCreateOffer,
-  useAddDistributor,
-  useDeployDistributor,
 } from '@torque-labs/react';
 
 /**
@@ -102,36 +99,6 @@ export function useTorqueIntegration(activeOfferId?: string, activeActionIndex?:
     isLoading: socialConnectLoading,
     error: socialConnectError,
   } = useSocialConnect();
-
-  // Create offer mutation
-  const createOfferMutation = useCreateOffer({
-    onSuccess: (data) => {
-      console.log('[Torque] Offer created:', data.id);
-    },
-    onError: (error) => {
-      console.warn('[Torque] Failed to create offer:', error.message);
-    },
-  });
-
-  // Add distributor to an offer
-  const addDistributorMutation = useAddDistributor({
-    onSuccess: (data) => {
-      console.log('[Torque] Distributor added:', data.id);
-    },
-    onError: (error) => {
-      console.warn('[Torque] Distributor add failed:', error.message);
-    },
-  });
-
-  // Deploy a distributor on-chain
-  const deployDistributorMutation = useDeployDistributor({
-    onSuccess: (data) => {
-      console.log('[Torque] Distributor deployed:', data.signature);
-    },
-    onError: (error) => {
-      console.warn('[Torque] Distributor deploy failed:', error.message);
-    },
-  });
 
   // Get the user's journey (first one if exists)
   const journey = useMemo(() => {
@@ -221,13 +188,6 @@ export function useTorqueIntegration(activeOfferId?: string, activeActionIndex?:
     connectDiscord,
     socialConnectLoading,
     socialConnectError,
-
-    // Create offer
-    createOffer: createOfferMutation,
-
-    // Distributors
-    addDistributor: addDistributorMutation,
-    deployDistributor: deployDistributorMutation,
 
     // General
     isLoading,

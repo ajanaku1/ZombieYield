@@ -8,7 +8,7 @@
  */
 
 import { useMemo } from 'react';
-import { useTorque, useOfferConversions } from '@torque-labs/react';
+import { useTorque, useOfferConversions, useOfferAnalytics } from '@torque-labs/react';
 import { useZombieClaim } from '../hooks/useZombieClaim';
 import { useAppStore } from '../store/appStore';
 
@@ -35,6 +35,15 @@ export function TorqueLeaderboard() {
     isLoading: conversionsLoading,
   } = useOfferConversions({
     offerId: torqueOfferId ?? '',
+    enabled: isAuthenticated && !!torqueOfferId,
+  });
+
+  // Fetch aggregate analytics for the ZombieYield offer
+  const {
+    data: analytics,
+  } = useOfferAnalytics({
+    offerId: torqueOfferId ?? '',
+    intervalType: 'day',
     enabled: isAuthenticated && !!torqueOfferId,
   });
 
@@ -101,6 +110,24 @@ export function TorqueLeaderboard() {
           )}
         </h2>
       </div>
+
+      {/* Campaign analytics summary */}
+      {analytics && (analytics.totalConversions > 0 || analytics.totalRewards > 0) && (
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="rounded-xl border border-zombie-green/20 bg-zombie-dark/50 p-3 text-center">
+            <p className="text-lg font-bold text-zombie-green">{analytics.totalConversions}</p>
+            <p className="text-xs text-gray-500">Total Claims</p>
+          </div>
+          <div className="rounded-xl border border-zombie-green/20 bg-zombie-dark/50 p-3 text-center">
+            <p className="text-lg font-bold text-zombie-green">{analytics.totalRewards.toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Points Distributed</p>
+          </div>
+          <div className="rounded-xl border border-zombie-green/20 bg-zombie-dark/50 p-3 text-center">
+            <p className="text-lg font-bold text-zombie-green">{leaderboard.length}</p>
+            <p className="text-xs text-gray-500">Unique Claimers</p>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-zombie-green/20 bg-zombie-dark/50 overflow-hidden">
         {conversionsLoading ? (
