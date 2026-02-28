@@ -7,7 +7,7 @@
  * @module components/TorqueOffersSection
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useTorqueIntegration } from '../hooks/useTorqueIntegration';
 
@@ -30,10 +30,29 @@ export function TorqueOffersSection() {
     executeActionPending,
   } = useTorqueIntegration(selectedOfferId ?? undefined);
 
+  // Track if Torque auth has been loading too long (stuck)
+  const authTimedOut = useRef(false);
+  const [forceShowButton, setForceShowButton] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading || isAuthenticated) {
+      authTimedOut.current = false;
+      return;
+    }
+    // If auth is loading for more than 5s, stop showing spinner
+    const timer = setTimeout(() => {
+      authTimedOut.current = true;
+      setForceShowButton(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [authLoading, isAuthenticated]);
+
   if (!connected) return null;
 
   // Not authenticated — sign-in prompt
   if (!isAuthenticated) {
+    const showLoading = authLoading && !forceShowButton;
+
     return (
       <section>
         <SectionHeader />
@@ -46,15 +65,18 @@ export function TorqueOffersSection() {
             Authenticate with Torque to access campaigns, earn rewards, and track your progress.
           </p>
           <button
-            onClick={signIn}
-            disabled={authLoading}
+            onClick={() => {
+              setForceShowButton(false);
+              signIn();
+            }}
+            disabled={showLoading}
             className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
-              authLoading
+              showLoading
                 ? 'bg-zombie-gray text-gray-500 cursor-not-allowed'
                 : 'bg-zombie-green text-zombie-black hover:shadow-neon hover:scale-[1.02] active:scale-[0.98]'
             }`}
           >
-            {authLoading ? 'Signing in...' : 'Sign in with Wallet'}
+            {showLoading ? 'Signing in...' : 'Sign in with Wallet'}
           </button>
         </div>
       </section>
