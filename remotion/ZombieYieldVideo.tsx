@@ -490,14 +490,6 @@ const TorqueScene: React.FC = () => {
           </FadeIn>
         </div>
 
-        <FadeIn delay={60}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.green }} />
-            <div style={{ fontSize: 22, color: COLORS.green, fontWeight: 600, fontFamily: "SF Pro Text, system-ui, sans-serif" }}>
-              Judges: check src/hooks/useTorqueIntegration.ts
-            </div>
-          </div>
-        </FadeIn>
       </div>
     </AbsoluteFill>
   );
@@ -606,13 +598,13 @@ const OutroScene: React.FC = () => {
 // Each scene uses SceneWrapper for smooth fade-in/out.
 // Scenes overlap by 10 frames for seamless crossfades.
 export const ZombieYieldVideo: React.FC = () => {
-  const S1 = 150;  // Title: 5s
-  const S2 = 210;  // Problem: 7s
-  const S3 = 240;  // Solution: 8s
-  const S4 = 450;  // Features: 15s
-  const S5 = 450;  // Torque: 15s
-  const S6 = 450;  // How It Works: 15s
-  const S7 = 750;  // Outro: 25s
+  const S1 = 120;  // Title: 4s
+  const S2 = 180;  // Problem: 6s
+  const S3 = 180;  // Solution: 6s
+  const S4 = 300;  // Features: 10s
+  const S5 = 270;  // Torque: 9s
+  const S6 = 300;  // How It Works: 10s
+  const S7 = 510;  // Outro: 17s
   const OVERLAP = 10;
 
   const t1 = 0;
