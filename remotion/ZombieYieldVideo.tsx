@@ -220,17 +220,29 @@ const TechBadge: React.FC<{ label: string; delay: number }> = ({ label, delay })
   </FadeIn>
 );
 
-const SceneTransition: React.FC = () => {
+/**
+ * Wraps a scene with smooth fade-in at the start and fade-out at the end.
+ * Each scene handles its own transitions — no separate overlay sequences needed.
+ */
+const SceneWrapper: React.FC<{
+  children: React.ReactNode;
+  durationInFrames: number;
+  fadeIn?: number;
+  fadeOut?: number;
+}> = ({ children, durationInFrames, fadeIn = 10, fadeOut = 10 }) => {
   const frame = useCurrentFrame();
-  const progress = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
+
+  let opacity = 1;
+  if (fadeIn > 0 && frame < fadeIn) {
+    opacity = interpolate(frame, [0, fadeIn], [0, 1], { extrapolateRight: "clamp" });
+  } else if (fadeOut > 0 && frame > durationInFrames - fadeOut) {
+    opacity = interpolate(frame, [durationInFrames - fadeOut, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
+  }
 
   return (
-    <AbsoluteFill
-      style={{
-        background: COLORS.bg,
-        opacity: interpolate(progress, [0, 0.5, 1], [1, 1, 0], { extrapolateRight: "clamp" }),
-      }}
-    />
+    <AbsoluteFill style={{ opacity }}>
+      {children}
+    </AbsoluteFill>
   );
 };
 
@@ -590,60 +602,76 @@ const OutroScene: React.FC = () => {
 
 // ─── Main Video Composition ───────────────────────────────
 // Total: 2700 frames @ 30fps = 90 seconds
+//
+// Each scene uses SceneWrapper for smooth fade-in/out.
+// Scenes overlap by 10 frames for seamless crossfades.
 export const ZombieYieldVideo: React.FC = () => {
+  const S1 = 150;  // Title: 5s
+  const S2 = 210;  // Problem: 7s
+  const S3 = 240;  // Solution: 8s
+  const S4 = 450;  // Features: 15s
+  const S5 = 450;  // Torque: 15s
+  const S6 = 450;  // How It Works: 15s
+  const S7 = 750;  // Outro: 25s
+  const OVERLAP = 10;
+
+  const t1 = 0;
+  const t2 = t1 + S1 - OVERLAP;
+  const t3 = t2 + S2 - OVERLAP;
+  const t4 = t3 + S3 - OVERLAP;
+  const t5 = t4 + S4 - OVERLAP;
+  const t6 = t5 + S5 - OVERLAP;
+  const t7 = t6 + S6 - OVERLAP;
+
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.bg }}>
-      {/* Scene 1: Title (0–5s) */}
-      <Sequence from={0} durationInFrames={150}>
-        <TitleScene />
-      </Sequence>
-      <Sequence from={140} durationInFrames={15}>
-        <SceneTransition />
-      </Sequence>
-
-      {/* Scene 2: The Problem (5–12s) */}
-      <Sequence from={150} durationInFrames={210}>
-        <ProblemScene />
-      </Sequence>
-      <Sequence from={350} durationInFrames={15}>
-        <SceneTransition />
+      {/* Scene 1: Title */}
+      <Sequence from={t1} durationInFrames={S1}>
+        <SceneWrapper durationInFrames={S1} fadeIn={0}>
+          <TitleScene />
+        </SceneWrapper>
       </Sequence>
 
-      {/* Scene 3: The Solution (12–20s) */}
-      <Sequence from={360} durationInFrames={240}>
-        <SolutionScene />
-      </Sequence>
-      <Sequence from={590} durationInFrames={15}>
-        <SceneTransition />
-      </Sequence>
-
-      {/* Scene 4: Features (20–35s) */}
-      <Sequence from={600} durationInFrames={450}>
-        <FeaturesScene />
-      </Sequence>
-      <Sequence from={1040} durationInFrames={15}>
-        <SceneTransition />
+      {/* Scene 2: The Problem */}
+      <Sequence from={t2} durationInFrames={S2}>
+        <SceneWrapper durationInFrames={S2}>
+          <ProblemScene />
+        </SceneWrapper>
       </Sequence>
 
-      {/* Scene 5: Torque Integration (35–50s) */}
-      <Sequence from={1050} durationInFrames={450}>
-        <TorqueScene />
-      </Sequence>
-      <Sequence from={1490} durationInFrames={15}>
-        <SceneTransition />
-      </Sequence>
-
-      {/* Scene 6: How It Works (50–65s) */}
-      <Sequence from={1500} durationInFrames={450}>
-        <HowItWorksScene />
-      </Sequence>
-      <Sequence from={1940} durationInFrames={15}>
-        <SceneTransition />
+      {/* Scene 3: The Solution */}
+      <Sequence from={t3} durationInFrames={S3}>
+        <SceneWrapper durationInFrames={S3}>
+          <SolutionScene />
+        </SceneWrapper>
       </Sequence>
 
-      {/* Scene 7: Outro + Tech Stack + CTA (65–90s) */}
-      <Sequence from={1950} durationInFrames={750}>
-        <OutroScene />
+      {/* Scene 4: Features */}
+      <Sequence from={t4} durationInFrames={S4}>
+        <SceneWrapper durationInFrames={S4}>
+          <FeaturesScene />
+        </SceneWrapper>
+      </Sequence>
+
+      {/* Scene 5: Torque Integration */}
+      <Sequence from={t5} durationInFrames={S5}>
+        <SceneWrapper durationInFrames={S5}>
+          <TorqueScene />
+        </SceneWrapper>
+      </Sequence>
+
+      {/* Scene 6: How It Works */}
+      <Sequence from={t6} durationInFrames={S6}>
+        <SceneWrapper durationInFrames={S6}>
+          <HowItWorksScene />
+        </SceneWrapper>
+      </Sequence>
+
+      {/* Scene 7: Outro + Tech Stack + CTA */}
+      <Sequence from={t7} durationInFrames={S7}>
+        <SceneWrapper durationInFrames={S7} fadeOut={0}>
+          <OutroScene />
+        </SceneWrapper>
       </Sequence>
     </AbsoluteFill>
   );
