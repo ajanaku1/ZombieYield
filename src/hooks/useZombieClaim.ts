@@ -18,6 +18,7 @@ import {
   useOfferJourney,
   useCreateOffer,
   useAddDistributor,
+  useDeployDistributor,
 } from '@torque-labs/react';
 import { rewardsClient } from '../lib/rewards';
 import { useAppStore } from '../store/appStore';
@@ -45,10 +46,28 @@ export function useZombieClaim() {
     enabled: isAuthenticated,
   });
 
-  // Add distributor mutation
+  // Deploy distributor on-chain after adding
+  const deployDistributorMutation = useDeployDistributor({
+    onSuccess: (data) => {
+      console.log('[ZombieClaim] Distributor deployed on-chain:', data.signature);
+    },
+    onError: (error) => {
+      console.warn('[ZombieClaim] Distributor deploy failed (non-blocking):', error.message);
+    },
+  });
+
+  // Add distributor mutation — on success, deploy it on-chain
   const addDistributorMutation = useAddDistributor({
     onSuccess: (data) => {
       console.log('[ZombieClaim] POINTS distributor added:', data.id);
+
+      // Deploy the distributor on-chain so rewards are actually distributed
+      if (offerId) {
+        deployDistributorMutation.mutate({
+          offerId,
+          distributorId: data.id,
+        } as any);
+      }
     },
     onError: (error) => {
       console.warn('[ZombieClaim] Distributor add failed:', error.message);

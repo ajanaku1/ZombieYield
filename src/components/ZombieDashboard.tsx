@@ -18,6 +18,7 @@ import { ClaimButton } from './ClaimButton';
 import { TorqueOffersSection } from './TorqueOffersSection';
 import { TorqueUserProfile } from './TorqueUserProfile';
 import { ClaimHistory } from './ClaimHistory';
+import { TorqueLeaderboard } from './TorqueLeaderboard';
 import { useZombieClaim } from '../hooks/useZombieClaim';
 
 /**
@@ -284,6 +285,9 @@ export function ZombieDashboard() {
           />
         </section>
       )}
+
+      {/* Leaderboard */}
+      <TorqueLeaderboard />
 
       {/* Claim History */}
       <ClaimHistory />
