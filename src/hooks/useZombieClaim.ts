@@ -127,34 +127,6 @@ export function useZombieClaim() {
     },
   });
 
-  // Create project mutation — required for custom events
-  const createProjectMutation = useCreateProject({
-    onSuccess: (data) => {
-      console.log('[ZombieClaim] Created Torque project:', data.id);
-      setProjectId(data.id);
-      setTorqueProjectId(data.id);
-    },
-    onError: (error) => {
-      console.warn('[ZombieClaim] Project creation failed:', error.message);
-      setFallbackReason(`Project creation failed: ${error.message}`);
-    },
-  });
-
-  // Start offer mutation
-  const { mutateAsync: startOfferAsync } = useStartOffer();
-
-  // Journey tracking
-  const {
-    data: journeyData,
-    refetch: refetchJourney,
-  } = useOfferJourney({
-    offerId: offerId ?? '',
-    enabled: isAuthenticated && !!offerId,
-  });
-
-  const journey = journeyData?.[0] ?? null;
-  const journeyStatus = journey?.status ?? null;
-
   /**
    * Create the ZombieYield offer with projectId
    */
@@ -198,15 +170,36 @@ export function useZombieClaim() {
     [createOfferMutation]
   );
 
-  // When project is created, proceed to create the offer
-  useEffect(() => {
-    if (projectId && !offerId && !createOfferMutation.isPending && isAuthenticated) {
-      // Check if we already attempted offer creation
-      if (setupAttempted.current) return;
-      setupAttempted.current = true;
-      createZombieOffer(projectId);
-    }
-  }, [projectId, offerId, createOfferMutation.isPending, isAuthenticated, createZombieOffer]);
+  // Create project mutation — on success, immediately create the offer
+  const createProjectMutation = useCreateProject({
+    onSuccess: (data) => {
+      console.log('[ZombieClaim] Created Torque project:', data.id);
+      setProjectId(data.id);
+      setTorqueProjectId(data.id);
+
+      // Chain directly into offer creation
+      createZombieOffer(data.id);
+    },
+    onError: (error) => {
+      console.warn('[ZombieClaim] Project creation failed:', error.message);
+      setFallbackReason(`Project creation failed: ${error.message}`);
+    },
+  });
+
+  // Start offer mutation
+  const { mutateAsync: startOfferAsync } = useStartOffer();
+
+  // Journey tracking
+  const {
+    data: journeyData,
+    refetch: refetchJourney,
+  } = useOfferJourney({
+    offerId: offerId ?? '',
+    enabled: isAuthenticated && !!offerId,
+  });
+
+  const journey = journeyData?.[0] ?? null;
+  const journeyStatus = journey?.status ?? null;
 
   // Find existing offer or initiate project + offer creation
   useEffect(() => {
@@ -236,13 +229,14 @@ export function useZombieClaim() {
         return;
       }
 
-      // No existing offer found — need a project first for custom events
+      // No existing offer found — guard against re-entry and start setup
+      setupAttempted.current = true;
+
       if (projectId) {
         // Already have a project, create the offer directly
-        setupAttempted.current = true;
         createZombieOffer(projectId);
       } else {
-        // Create the project first, offer creation will follow via useEffect
+        // Create the project first — offer creation chains from onSuccess
         console.log('[ZombieClaim] Creating Torque project for custom events...');
         createProjectMutation.mutate({
           name: ZOMBIE_PROJECT_NAME,
