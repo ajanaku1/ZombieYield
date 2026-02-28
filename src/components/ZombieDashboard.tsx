@@ -16,6 +16,8 @@ import { ZombieStatsCard } from './ZombieStatsCard';
 import { ZombieAssetsTable } from './ZombieAssetsTable';
 import { ClaimButton } from './ClaimButton';
 import { TorqueOffersSection } from './TorqueOffersSection';
+import { TorqueUserProfile } from './TorqueUserProfile';
+import { ClaimHistory } from './ClaimHistory';
 
 /**
  * Format time ago from timestamp
@@ -257,6 +259,9 @@ export function ZombieDashboard() {
         )}
       </section>
 
+      {/* Torque Profile & Social Connect */}
+      <TorqueUserProfile />
+
       {/* Torque Campaigns Section */}
       <TorqueOffersSection />
 
@@ -264,12 +269,15 @@ export function ZombieDashboard() {
       {totalFound > 0 && !scanning && (
         <section>
           <ClaimButton
-            disabled={displayPoints.availableToClaim === 0}
-            totalPoints={displayPoints.availableToClaim}
+            zombieAssets={zombieAssets}
+            pointsPerDay={displayPoints.pointsPerDay || totalFound * 10}
             onClaimSuccess={handleClaimSuccess}
           />
         </section>
       )}
+
+      {/* Claim History */}
+      <ClaimHistory />
     </div>
   );
 }

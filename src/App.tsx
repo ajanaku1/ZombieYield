@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Dashboard } from './views/Dashboard';
 import { VideoPage } from './views/VideoPage';
+import { LandingPage } from './views/LandingPage';
 import { ToastContainer } from './components/ToastContainer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WalletContextProvider } from './components/WalletContextProvider';
@@ -21,8 +22,26 @@ function useHashRoute() {
 
 function App() {
   const hash = useHashRoute();
-  const isVideoPage = hash === '#/video';
 
+  // Landing page — no wallet provider needed
+  if (!hash || hash === '#/' || hash === '#') {
+    return (
+      <ErrorBoundary>
+        <LandingPage />
+      </ErrorBoundary>
+    );
+  }
+
+  // Video page — no wallet provider needed
+  if (hash === '#/video') {
+    return (
+      <ErrorBoundary>
+        <VideoPage />
+      </ErrorBoundary>
+    );
+  }
+
+  // App dashboard — full wallet context
   return (
     <ErrorBoundary>
       <WalletContextProvider>
@@ -30,7 +49,7 @@ function App() {
           <ToastContainer />
           <Header />
           <main>
-            {isVideoPage ? <VideoPage /> : <Dashboard />}
+            <Dashboard />
           </main>
 
           {/* Footer */}
@@ -40,18 +59,23 @@ function App() {
                 <p>&copy; 2026 ZombieYield. All rights reserved.</p>
                 <div className="flex items-center gap-4">
                   <a
-                    href="#/video"
-                    className="hover:text-zombie-green transition-colors"
+                    href="#/"
+                    className="hover:text-zombie-green transition-colors duration-150"
                   >
-                    Presentation Video
+                    Home
                   </a>
-                  <span className="hidden sm:inline">&bull;</span>
+                  <span className="hidden sm:inline">&middot;</span>
+                  <a
+                    href="#/video"
+                    className="hover:text-zombie-green transition-colors duration-150"
+                  >
+                    Video
+                  </a>
+                  <span className="hidden sm:inline">&middot;</span>
                   <span className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-green-500" />
-                    Powered by Torque
+                    Solana Network
                   </span>
-                  <span className="hidden sm:inline">&bull;</span>
-                  <span>Solana Network</span>
                 </div>
               </div>
             </div>

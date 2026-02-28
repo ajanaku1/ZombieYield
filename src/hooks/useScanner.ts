@@ -16,13 +16,15 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
-import type { ZombieAsset } from '../types';
+import type { ZombieAsset, AssetCategory } from '../types';
 import {
   zombieTokenSet,
   getTokenMetadata,
+  isDeadProjectMint,
 } from '../config/zombieAllowlist';
 import { getNetworkFromEnv } from '../lib/solanaConnection';
 import { getMockAssetsForBalance, isDevModeEnabled, DEV_MODE_CONFIG } from '../lib/devModeAssets';
+import { calculateZombieScore } from '../lib/pointsEngine';
 
 /**
  * Debounce delay in milliseconds
@@ -141,6 +143,78 @@ async function injectDevModeAssets(
     solBalance,
     isDevMode: true,
   };
+}
+
+/**
+ * Fetch USD prices for token mints from Jupiter Price API
+ * Returns a map of mint → price in USD
+ */
+async function fetchTokenPrices(mints: string[]): Promise<Map<string, number>> {
+  const prices = new Map<string, number>();
+  if (mints.length === 0) return prices;
+
+  try {
+    const ids = mints.join(',');
+    const response = await fetch(`https://api.jup.ag/price/v2?ids=${ids}`);
+    if (!response.ok) return prices;
+
+    const json = await response.json();
+    if (json.data) {
+      for (const [mint, info] of Object.entries(json.data)) {
+        const priceData = info as any;
+        if (priceData?.price) {
+          prices.set(mint, parseFloat(priceData.price));
+        }
+      }
+    }
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[Scanner] Jupiter price fetch failed:', error);
+    }
+  }
+  return prices;
+}
+
+/**
+ * Check last transaction activity for a token account
+ * Returns days since last activity, or -1 if unknown
+ */
+async function checkDormancy(
+  connection: any,
+  tokenAccountPubkey: PublicKey
+): Promise<number> {
+  try {
+    const sigs = await connection.getSignaturesForAddress(tokenAccountPubkey, { limit: 1 });
+    if (sigs.length === 0) return 365; // No activity found → assume very dormant
+    const lastTxTime = sigs[0].blockTime ? sigs[0].blockTime * 1000 : Date.now();
+    const daysSince = (Date.now() - lastTxTime) / (1000 * 60 * 60 * 24);
+    return Math.floor(daysSince);
+  } catch {
+    return -1; // Unknown
+  }
+}
+
+/**
+ * Classify a token asset into a zombie category
+ */
+function classifyTokenAsset(
+  mint: string,
+  balance: number,
+  usdPrice: number | undefined,
+  dormancyDays: number
+): AssetCategory {
+  // Dead project takes priority
+  if (isDeadProjectMint(mint)) return 'dead_project';
+
+  // Dust: balance worth < $0.10
+  const usdValue = usdPrice != null ? balance * usdPrice : undefined;
+  if (usdValue != null && usdValue < 0.1) return 'dust_token';
+
+  // Dormant: no activity in 90+ days
+  if (dormancyDays >= 90) return 'dormant_token';
+
+  // Default for tokens on allowlist
+  return 'dormant_token';
 }
 
 /**
@@ -538,6 +612,36 @@ export function useScanner(): ScannerResult {
       const nftAssets = await scanNfts(connection, publicKey);
       assets.push(...nftAssets);
 
+      // Classify and score assets
+      const tokenMints = assets.filter(a => a.type === 'token').map(a => a.mint);
+      const prices = await fetchTokenPrices(tokenMints);
+
+      for (const asset of assets) {
+        if (asset.type === 'token') {
+          const usdPrice = prices.get(asset.mint);
+          const usdValue = usdPrice != null && asset.balance != null
+            ? asset.balance * usdPrice
+            : undefined;
+          // Quick dormancy check — limit to first 5 tokens to avoid RPC spam
+          const dormancyDays = tokenMints.indexOf(asset.mint) < 5
+            ? await checkDormancy(connection, new PublicKey(asset.mint)).catch(() => -1)
+            : -1;
+
+          asset.usdValue = usdValue;
+          asset.lastActivityDaysAgo = dormancyDays >= 0 ? dormancyDays : undefined;
+          asset.category = classifyTokenAsset(
+            asset.mint,
+            asset.balance ?? 0,
+            usdPrice,
+            dormancyDays >= 0 ? dormancyDays : 0
+          );
+        } else {
+          // NFTs default to abandoned_nft
+          asset.category = 'abandoned_nft';
+        }
+        asset.zombieScore = calculateZombieScore(asset);
+      }
+
       // DEV MODE: Inject mock assets based on SOL balance
       const { assets: combinedAssets, solBalance: balance, isDevMode: devMode } = 
         await injectDevModeAssets(connection, publicKey, assets);
@@ -571,7 +675,7 @@ export function useScanner(): ScannerResult {
   }, [connection, publicKey, connected, scanComplete, getCachedResult, cacheResult]);
 
   /**
-   * Manual refetch - bypasses cache
+   * Manual refetch - bypasses cache, runs full scan inline
    */
   const refetch = useCallback(async () => {
     if (!publicKey || !connected || isScanningRef.current) {
@@ -580,24 +684,23 @@ export function useScanner(): ScannerResult {
 
     const walletAddress = publicKey.toString();
 
-    // Clear cache for this wallet
+    // Clear cache
     scanCache.delete(walletAddress);
-    setScanComplete(false);
     lastScannedWalletRef.current = null;
 
-    // Force a fresh scan
     isScanningRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
+      const assets: ZombieAsset[] = [];
+
+      // Scan tokens
       const tokenAccounts = await fetchTokenAccountsWithTimeout(
         connection,
         publicKey,
         RPC_TIMEOUT_MS
       );
-
-      const assets: ZombieAsset[] = [];
 
       for (const { account } of tokenAccounts.value) {
         const data = Buffer.from(account.data);
@@ -621,7 +724,33 @@ export function useScanner(): ScannerResult {
         }
       }
 
-      setZombieAssets(assets);
+      // Scan NFTs
+      const nftAssets = await scanNfts(connection, publicKey);
+      assets.push(...nftAssets);
+
+      // Classify and score
+      const tokenMints = assets.filter(a => a.type === 'token').map(a => a.mint);
+      const prices = await fetchTokenPrices(tokenMints);
+
+      for (const asset of assets) {
+        if (asset.type === 'token') {
+          const usdPrice = prices.get(asset.mint);
+          asset.usdValue = usdPrice != null && asset.balance != null
+            ? asset.balance * usdPrice : undefined;
+          asset.category = classifyTokenAsset(asset.mint, asset.balance ?? 0, usdPrice, 0);
+        } else {
+          asset.category = 'abandoned_nft';
+        }
+        asset.zombieScore = calculateZombieScore(asset);
+      }
+
+      // Dev mode injection
+      const { assets: combinedAssets, solBalance: balance, isDevMode: devMode } =
+        await injectDevModeAssets(connection, publicKey, assets);
+
+      setZombieAssets(combinedAssets);
+      setSolBalance(balance);
+      setIsDevMode(devMode);
       setScanComplete(true);
       setLastScanTime(Date.now());
       lastScannedWalletRef.current = walletAddress;

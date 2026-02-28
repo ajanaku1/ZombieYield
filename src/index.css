@@ -28,8 +28,10 @@
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #39ff14;
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover {
+    background: #39ff14;
+  }
 }
 
 /* Base styles */
@@ -48,8 +50,10 @@ body {
   box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
 }
 
-.card-glow-hover:hover {
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.2);
+@media (hover: hover) {
+  .card-glow-hover:hover {
+    box-shadow: 0 0 30px rgba(57, 255, 20, 0.2);
+  }
 }
 
 @keyframes slide-in {
@@ -73,15 +77,17 @@ body {
   color: var(--color-zombie-black) !important;
   font-weight: bold !important;
   border-radius: 0.75rem !important;
-  transition: all 0.2s !important;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out !important;
   height: 2.5rem !important;
   padding-left: 1rem !important;
   padding-right: 1rem !important;
 }
 
-.wallet-adapter-button:hover {
-  box-shadow: var(--shadow-neon);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .wallet-adapter-button:hover {
+    box-shadow: var(--shadow-neon);
+    transform: translateY(-1px);
+  }
 }
 
 .wallet-adapter-button-trigger {
@@ -113,9 +119,11 @@ body {
   margin: 0 !important;
 }
 
-.wallet-adapter-modal-list li:hover {
-  background-color: rgba(57, 255, 20, 0.08) !important;
-  border-color: rgba(57, 255, 20, 0.3) !important;
+@media (hover: hover) {
+  .wallet-adapter-modal-list li:hover {
+    background-color: rgba(57, 255, 20, 0.08) !important;
+    border-color: rgba(57, 255, 20, 0.3) !important;
+  }
 }
 
 .wallet-adapter-modal-list li button {
@@ -123,9 +131,11 @@ body {
   background-color: transparent !important;
 }
 
-.wallet-adapter-modal-list li button:hover {
-  color: var(--color-zombie-green) !important;
-  background-color: transparent !important;
+@media (hover: hover) {
+  .wallet-adapter-modal-list li button:hover {
+    color: var(--color-zombie-green) !important;
+    background-color: transparent !important;
+  }
 }
 
 .wallet-adapter-modal-list li button span {
@@ -133,9 +143,11 @@ body {
   background-color: transparent !important;
 }
 
-.wallet-adapter-modal-list li button:hover span {
-  color: var(--color-zombie-green) !important;
-  background-color: transparent !important;
+@media (hover: hover) {
+  .wallet-adapter-modal-list li button:hover span {
+    color: var(--color-zombie-green) !important;
+    background-color: transparent !important;
+  }
 }
 
 /* Remove all default backgrounds */
@@ -161,6 +173,8 @@ body {
   background-color: transparent !important;
 }
 
-.wallet-adapter-modal-list *:hover {
-  background-color: rgba(57, 255, 20, 0.08) !important;
+@media (hover: hover) {
+  .wallet-adapter-modal-list *:hover {
+    background-color: rgba(57, 255, 20, 0.08) !important;
+  }
 }

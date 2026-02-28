@@ -1,17 +1,20 @@
 /**
  * ZombieYield Points Engine
  *
- * Torque-compatible mock points system.
+ * Category-aware points system with zombie scoring.
  * Pure logic module - no React dependencies.
  *
  * Features:
- * - Configurable base points per asset
- * - Multiplier support for future enhancements
+ * - Category-based point rates (dust, dormant, abandoned NFT, dead project)
+ * - Balance-weighted scoring with log scale
+ * - Dormancy bonus for long-idle assets
  * - Time-based accumulation
  * - Deterministic calculations
  *
  * @module lib/pointsEngine
  */
+
+import type { ZombieAsset, ZombieScore, AssetCategory } from '../types';
 
 /**
  * Points calculation result
@@ -26,7 +29,6 @@ export interface PointsResult {
 
 /**
  * Points configuration
- * Easy to override for different point schemes
  */
 export interface PointsConfig {
   basePointsPerAsset: number;
@@ -34,8 +36,7 @@ export interface PointsConfig {
 }
 
 /**
- * Default configuration
- * MVP uses 10 points per asset per day
+ * Default configuration (fallback for uncategorized assets)
  */
 export const DEFAULT_POINTS_CONFIG: PointsConfig = {
   basePointsPerAsset: 10,
@@ -43,36 +44,89 @@ export const DEFAULT_POINTS_CONFIG: PointsConfig = {
 };
 
 /**
+ * Category-based point rates per day
+ */
+export const CATEGORY_RATES: Record<AssetCategory, number> = {
+  dust_token: 5,
+  dormant_token: 15,
+  abandoned_nft: 20,
+  dead_project: 25,
+};
+
+/**
+ * Calculate zombie score for an individual asset
+ */
+export function calculateZombieScore(asset: ZombieAsset): ZombieScore {
+  const categoryRate = asset.category ? CATEGORY_RATES[asset.category] : 10;
+
+  // Balance multiplier: log2(balance + 1) clamped to [1, 5]
+  // 1 token → 1x, 100 → ~2.2x, 10K → ~4.6x, 100K+ → 5x cap
+  const balance = asset.balance ?? 1;
+  const rawBalanceMult = Math.log2(balance + 1);
+  const balanceMultiplier = Math.min(Math.max(rawBalanceMult, 1), 5);
+
+  // Dormancy bonus: +0.5x per 30 days idle, up to +3x
+  const dormancyDays = asset.lastActivityDaysAgo ?? 0;
+  const dormancyBonus = Math.min((dormancyDays / 30) * 0.5, 3);
+
+  const base = categoryRate;
+  const total = Math.round(base * balanceMultiplier * (1 + dormancyBonus));
+
+  return { base, balanceMultiplier, dormancyBonus, categoryRate, total };
+}
+
+/**
+ * Calculate total points per day for a set of zombie assets
+ */
+export function calculatePointsPerDayFromAssets(assets: ZombieAsset[]): number {
+  return assets.reduce((sum, asset) => {
+    const score = asset.zombieScore ?? calculateZombieScore(asset);
+    return sum + score.total;
+  }, 0);
+}
+
+/**
  * Calculate points based on zombie count and connection time
- *
- * @param zombieCount - Number of zombie assets held
- * @param walletConnectedAt - Timestamp when wallet was connected (ms)
- * @param config - Optional points configuration
- * @returns Points calculation result
+ * Falls back to flat rate when assets aren't provided
  */
 export function calculatePoints(
   zombieCount: number,
   walletConnectedAt: number,
   config: PointsConfig = DEFAULT_POINTS_CONFIG
 ): PointsResult {
-  // Points per day = base points × asset count × multiplier
   const pointsPerDay = zombieCount * config.basePointsPerAsset * config.multiplier;
-
-  // Calculate time elapsed since connection
   const now = Date.now();
   const elapsedMs = Math.max(0, now - walletConnectedAt);
-
-  // Convert to days (with decimal precision)
   const daysActive = elapsedMs / (1000 * 60 * 60 * 24);
-
-  // Calculate total points accumulated over time
   const totalPoints = Math.floor(pointsPerDay * daysActive);
 
   return {
     pointsPerDay,
     totalPoints,
     multiplier: config.multiplier,
-    daysActive: Math.min(daysActive, 365), // Cap at 1 year for display
+    daysActive: Math.min(daysActive, 365),
+    lastUpdated: now,
+  };
+}
+
+/**
+ * Calculate points with category-aware scoring
+ */
+export function calculatePointsFromAssets(
+  assets: ZombieAsset[],
+  walletConnectedAt: number
+): PointsResult {
+  const pointsPerDay = calculatePointsPerDayFromAssets(assets);
+  const now = Date.now();
+  const elapsedMs = Math.max(0, now - walletConnectedAt);
+  const daysActive = elapsedMs / (1000 * 60 * 60 * 24);
+  const totalPoints = Math.floor(pointsPerDay * daysActive);
+
+  return {
+    pointsPerDay,
+    totalPoints,
+    multiplier: 1,
+    daysActive: Math.min(daysActive, 365),
     lastUpdated: now,
   };
 }

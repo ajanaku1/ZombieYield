@@ -49,15 +49,22 @@ export class TorqueRewardsAdapter implements RewardsAdapter {
       walletConnectedAt
     );
 
-    const tier = getTierForPoints(totalPoints);
+    // Ensure users with zombie assets always have claimable points
+    // (minimum 1 day's worth so the claim button is never stuck at 0)
+    const minPoints = pointsPerDay > 0 ? Math.max(pointsPerDay, 1) : 0;
+    const effectivePoints = Math.max(totalPoints, minPoints);
 
-    return {
-      totalPoints,
+    const tier = getTierForPoints(effectivePoints);
+
+    const result = {
+      totalPoints: effectivePoints,
       pointsPerDay,
-      availableToClaim: totalPoints,
+      availableToClaim: effectivePoints,
       lastUpdated: Date.now(),
       tier,
     };
+    this._lastPointsData = result;
+    return result;
   }
 
   /**
@@ -65,14 +72,18 @@ export class TorqueRewardsAdapter implements RewardsAdapter {
    * In the real flow, claiming is handled by Torque journey completion.
    * This provides a local fallback for the existing claim UI.
    */
+  private _lastPointsData: UserPointsData | null = null;
+
   async claimRewards(_wallet: string): Promise<ClaimResult> {
-    // Simulate — real claims go through Torque offer journeys
+    // Simulate claim — real claims go through Torque offer journeys
     await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const claimedAmount = this._lastPointsData?.availableToClaim ?? 0;
 
     return {
       success: true,
-      claimedAmount: 0,
-      transactionSignature: `torque_sdk_${Date.now()}`,
+      claimedAmount,
+      transactionSignature: `torque_claim_${Date.now()}`,
       timestamp: Date.now(),
     };
   }

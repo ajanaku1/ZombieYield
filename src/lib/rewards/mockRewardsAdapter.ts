@@ -39,14 +39,17 @@ export class MockRewardsAdapter implements RewardsAdapter {
     // Get previously claimed amount
     const claimed = claimedPointsStore.get(wallet.toLowerCase()) || 0;
 
-    // Available = total - claimed
-    const availableToClaim = Math.max(0, totalPoints - claimed);
+    // Available = total - claimed, but always at least 1 day's worth if holding assets
+    const rawAvailable = Math.max(0, totalPoints - claimed);
+    const minPoints = pointsPerDay > 0 ? Math.max(pointsPerDay, 1) : 0;
+    const availableToClaim = Math.max(rawAvailable, minPoints);
+    const effectiveTotal = Math.max(totalPoints, minPoints);
 
     // Determine tier
-    const tier = getTierForPoints(totalPoints);
+    const tier = getTierForPoints(effectiveTotal);
 
     return {
-      totalPoints,
+      totalPoints: effectiveTotal,
       pointsPerDay,
       availableToClaim,
       lastUpdated: Date.now(),

@@ -139,6 +139,30 @@ export function getCollectionMetadata(
 }
 
 /**
+ * Known dead/rugged project mints
+ * These tokens are from projects that have been confirmed dead, rugged, or abandoned.
+ * Assets matching these mints get the highest point rate (dead_project category).
+ */
+export const DEAD_PROJECT_MINTS: string[] = [
+  // Add known dead project mints here
+  // Format: 'MINT_ADDRESS', // PROJECT_NAME — reason
+];
+
+/**
+ * Optimized Set for dead project lookup
+ */
+export const deadProjectMintSet = new Set(
+  DEAD_PROJECT_MINTS.map((mint) => mint.toLowerCase())
+);
+
+/**
+ * Check if a mint belongs to a known dead project
+ */
+export function isDeadProjectMint(mint: string): boolean {
+  return deadProjectMintSet.has(mint.toLowerCase());
+}
+
+/**
  * Points configuration constants
  */
 export const POINTS_PER_TOKEN_PER_DAY = 10;

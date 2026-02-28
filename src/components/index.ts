@@ -16,3 +16,5 @@ export { ZombieStatsCard } from './ZombieStatsCard';
 export { ZombieAssetsTable } from './ZombieAssetsTable';
 export { DevDebugPanel } from './DevDebugPanel';
 export { TorqueOffersSection } from './TorqueOffersSection';
+export { TorqueUserProfile } from './TorqueUserProfile';
+export { ClaimHistory } from './ClaimHistory';

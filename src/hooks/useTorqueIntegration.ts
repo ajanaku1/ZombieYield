@@ -2,13 +2,23 @@
  * useTorqueIntegration Hook
  *
  * Encapsulates all Torque SDK interactions using @torque-labs/react hooks.
- * Provides auth state, active offers, offer start mutation, and journey tracking.
+ * Provides auth state, active offers, offer actions, journey tracking,
+ * social connect, and user profile.
  *
  * @module hooks/useTorqueIntegration
  */
 
 import { useCallback, useMemo } from 'react';
-import { useTorque, useOffers, useStartOffer, useOfferJourney } from '@torque-labs/react';
+import {
+  useTorque,
+  useOffers,
+  useStartOffer,
+  useOfferJourney,
+  useOfferAction,
+  useOffer,
+  useCurrentUser,
+  useSocialConnect,
+} from '@torque-labs/react';
 
 /**
  * Torque integration hook
@@ -16,7 +26,7 @@ import { useTorque, useOffers, useStartOffer, useOfferJourney } from '@torque-la
  * Wraps all Torque SDK hooks into a single unified interface.
  * Gracefully handles errors — if Torque is unreachable, returns safe defaults.
  */
-export function useTorqueIntegration(activeOfferId?: string) {
+export function useTorqueIntegration(activeOfferId?: string, activeActionIndex?: number) {
   // Core auth state
   const {
     isAuthenticated,
@@ -59,6 +69,37 @@ export function useTorqueIntegration(activeOfferId?: string) {
     enabled: isAuthenticated && !!activeOfferId,
   });
 
+  // Single offer detail
+  const {
+    data: currentOffer,
+    isLoading: offerLoading,
+  } = useOffer({
+    offerId: activeOfferId ?? '',
+    enabled: isAuthenticated && !!activeOfferId,
+  });
+
+  // Offer action (get transaction + execute for a specific step)
+  const { getAction, executeAction } = useOfferAction({
+    offerId: activeOfferId ?? '',
+    index: activeActionIndex ?? 0,
+    enabled: isAuthenticated && !!activeOfferId && activeActionIndex != null,
+  });
+
+  // Current user profile
+  const {
+    data: userProfile,
+    isLoading: profileLoading,
+  } = useCurrentUser({
+    enabled: isAuthenticated,
+  });
+
+  // Social connect
+  const {
+    connect: socialConnect,
+    isLoading: socialConnectLoading,
+    error: socialConnectError,
+  } = useSocialConnect();
+
   // Get the user's journey (first one if exists)
   const journey = useMemo(() => {
     if (!journeyData || journeyData.length === 0) return null;
@@ -77,6 +118,14 @@ export function useTorqueIntegration(activeOfferId?: string) {
     [startOfferMutate]
   );
 
+  // Execute an action within a journey
+  const completeAction = useCallback(
+    (offerId: string, index: number) => {
+      executeAction.mutate({ offerId, index });
+    },
+    [executeAction]
+  );
+
   // Prompt Torque sign-in
   const signIn = useCallback(async () => {
     try {
@@ -85,6 +134,15 @@ export function useTorqueIntegration(activeOfferId?: string) {
       console.error('[Torque] Authentication failed:', error);
     }
   }, [authenticate]);
+
+  // Social connect helpers
+  const connectTwitter = useCallback(() => {
+    socialConnect('twitter');
+  }, [socialConnect]);
+
+  const connectDiscord = useCallback(() => {
+    socialConnect('discord' as any);
+  }, [socialConnect]);
 
   return {
     // Auth
@@ -107,10 +165,29 @@ export function useTorqueIntegration(activeOfferId?: string) {
     startOfferAsync,
     startingOffer,
 
+    // Single offer detail
+    currentOffer: currentOffer ?? null,
+    offerLoading,
+
     // Journey
     journey,
     journeyLoading,
     refetchJourney,
+
+    // Actions
+    getAction,
+    completeAction,
+    executeActionPending: executeAction.isPending,
+
+    // User profile
+    userProfile: userProfile ?? null,
+    profileLoading,
+
+    // Social
+    connectTwitter,
+    connectDiscord,
+    socialConnectLoading,
+    socialConnectError,
 
     // General
     isLoading,
