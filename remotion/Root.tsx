@@ -8,7 +8,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="ZombieYieldPresentation"
         component={ZombieYieldVideo}
-        durationInFrames={3600}
+        durationInFrames={2700}
         fps={30}
         width={1920}
         height={1080}

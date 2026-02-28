@@ -46,7 +46,7 @@ export function VideoPage() {
       <div className="mt-8 grid sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-zombie-green/20 bg-zombie-dark/50 p-5">
           <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2">Duration</h3>
-          <p className="text-2xl font-bold text-white">2:00</p>
+          <p className="text-2xl font-bold text-white">1:30</p>
         </div>
         <div className="rounded-xl border border-zombie-green/20 bg-zombie-dark/50 p-5">
           <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2">Made With</h3>
@@ -64,13 +64,12 @@ export function VideoPage() {
         <div className="grid sm:grid-cols-2 gap-3 text-sm">
           {[
             { time: "0:00", label: "Introduction & Branding" },
-            { time: "0:06", label: "The Problem — Dead Tokens" },
-            { time: "0:16", label: "The Solution — ZombieYield" },
-            { time: "0:26", label: "Key Features Overview" },
-            { time: "0:50", label: "Real Torque SDK Integration" },
-            { time: "1:10", label: "How It Works (5 Steps)" },
-            { time: "1:30", label: "Tech Stack" },
-            { time: "1:40", label: "Try It — CTA" },
+            { time: "0:05", label: "The Problem — Dead Tokens" },
+            { time: "0:12", label: "The Solution — ZombieYield" },
+            { time: "0:20", label: "Key Features Overview" },
+            { time: "0:35", label: "Real Torque SDK Integration" },
+            { time: "0:50", label: "How It Works (5 Steps)" },
+            { time: "1:05", label: "Tech Stack + CTA" },
           ].map((item) => (
             <div key={item.time} className="flex items-center gap-3 text-gray-400">
               <span className="font-mono text-zombie-green bg-zombie-green/10 px-2 py-1 rounded text-xs">
