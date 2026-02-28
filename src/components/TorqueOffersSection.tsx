@@ -11,10 +11,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useTorqueIntegration } from '../hooks/useTorqueIntegration';
 
+const PAGE_SIZE = 4;
+
 export function TorqueOffersSection() {
   const { connected } = useWallet();
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [expandedOfferId, setExpandedOfferId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const {
     isAuthenticated,
@@ -107,12 +110,15 @@ export function TorqueOffersSection() {
     );
   }
 
+  const totalPages = Math.ceil(offers.length / PAGE_SIZE);
+  const pagedOffers = offers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <section>
       <SectionHeader count={offers.length} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {offers.map((offer) => {
+        {pagedOffers.map((offer) => {
           const isSelected = selectedOfferId === offer.id;
           const isExpanded = expandedOfferId === offer.id;
           const requirements = offer.offerRequirements ?? [];
@@ -294,6 +300,53 @@ export function TorqueOffersSection() {
           );
         })}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 mt-4">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              page === 0
+                ? 'text-gray-600 cursor-not-allowed'
+                : 'text-zombie-green hover:bg-zombie-green/10'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i)}
+              className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                i === page
+                  ? 'bg-zombie-green text-zombie-black'
+                  : 'text-gray-400 hover:bg-zombie-green/10 hover:text-zombie-green'
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page === totalPages - 1}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              page === totalPages - 1
+                ? 'text-gray-600 cursor-not-allowed'
+                : 'text-zombie-green hover:bg-zombie-green/10'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
     </section>
   );
 }
