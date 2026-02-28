@@ -42,7 +42,8 @@ interface AppState {
   // Torque auth state (persisted)
   torqueAuthState: TorqueAuthState;
 
-  // Cached ZombieYield Torque offer ID (persisted)
+  // Cached ZombieYield Torque project & offer IDs (persisted)
+  torqueProjectId: string | null;
   torqueClaimOfferId: string | null;
 
   // UI state
@@ -61,6 +62,7 @@ interface AppState {
   addClaimEntry: (entry: ClaimHistoryEntry) => void;
   markAssetsClaimed: (mints: string[]) => void;
   setTorqueAuthState: (state: TorqueAuthState) => void;
+  setTorqueProjectId: (id: string | null) => void;
   setTorqueClaimOfferId: (id: string | null) => void;
   reset: () => void;
 }
@@ -79,6 +81,7 @@ const initialState = {
   lastClaimTimestamp: null as number | null,
   claimedAssetTimestamps: {} as Record<string, number>,
   torqueAuthState: { isAuthenticated: false } as TorqueAuthState,
+  torqueProjectId: null as string | null,
   torqueClaimOfferId: null as string | null,
   toasts: [] as Toast[],
   isLoading: false,
@@ -160,6 +163,10 @@ export const useAppStore = create<AppState>()(
         set({ torqueAuthState: authState });
       },
 
+      setTorqueProjectId: (id) => {
+        set({ torqueProjectId: id });
+      },
+
       setTorqueClaimOfferId: (id) => {
         set({ torqueClaimOfferId: id });
       },
@@ -177,6 +184,7 @@ export const useAppStore = create<AppState>()(
         lastClaimTimestamp: state.lastClaimTimestamp,
         claimedAssetTimestamps: state.claimedAssetTimestamps,
         torqueAuthState: state.torqueAuthState,
+        torqueProjectId: state.torqueProjectId,
         torqueClaimOfferId: state.torqueClaimOfferId,
       }),
     }

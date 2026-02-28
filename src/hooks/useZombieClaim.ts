@@ -2,6 +2,7 @@
  * useZombieClaim Hook
  *
  * Wires the ZombieYield claim flow through Torque SDK with:
+ * - Project creation (required for custom events)
  * - Multi-step requirements (scan 3+ zombie assets + claim)
  * - POINTS distributor for real reward distribution
  * - Custom event firing on scan completion
@@ -17,6 +18,7 @@ import {
   useStartOffer,
   useOfferJourney,
   useCreateOffer,
+  useCreateProject,
   useAddDistributor,
   useDeployDistributor,
 } from '@torque-labs/react';
@@ -24,12 +26,19 @@ import { rewardsClient } from '../lib/rewards';
 import { useAppStore } from '../store/appStore';
 import type { ClaimResult } from '../lib/rewards/rewardsAdapter';
 
+const ZOMBIE_PROJECT_NAME = 'ZombieYield';
 const ZOMBIE_OFFER_TITLE = 'ZombieYield Daily Rewards';
 
 export function useZombieClaim() {
   const { isAuthenticated, torque } = useTorque();
-  const { torqueClaimOfferId, setTorqueClaimOfferId } = useAppStore();
+  const {
+    torqueProjectId: cachedProjectId,
+    setTorqueProjectId,
+    torqueClaimOfferId,
+    setTorqueClaimOfferId,
+  } = useAppStore();
 
+  const [projectId, setProjectId] = useState<string | null>(cachedProjectId);
   const [offerId, setOfferId] = useState<string | null>(torqueClaimOfferId);
   const [isTorqueClaim, setIsTorqueClaim] = useState(false);
   const [fallbackReason, setFallbackReason] = useState<string | null>(null);
@@ -118,6 +127,19 @@ export function useZombieClaim() {
     },
   });
 
+  // Create project mutation — required for custom events
+  const createProjectMutation = useCreateProject({
+    onSuccess: (data) => {
+      console.log('[ZombieClaim] Created Torque project:', data.id);
+      setProjectId(data.id);
+      setTorqueProjectId(data.id);
+    },
+    onError: (error) => {
+      console.warn('[ZombieClaim] Project creation failed:', error.message);
+      setFallbackReason(`Project creation failed: ${error.message}`);
+    },
+  });
+
   // Start offer mutation
   const { mutateAsync: startOfferAsync } = useStartOffer();
 
@@ -133,41 +155,16 @@ export function useZombieClaim() {
   const journey = journeyData?.[0] ?? null;
   const journeyStatus = journey?.status ?? null;
 
-  // Find or create the ZombieYield offer
-  useEffect(() => {
-    if (!isAuthenticated || offersLoading || setupAttempted.current) return;
-
-    // If we already have a cached offer ID, verify it still exists
-    if (torqueClaimOfferId && offers) {
-      const found = offers.find((o) => o.id === torqueClaimOfferId);
-      if (found) {
-        setOfferId(torqueClaimOfferId);
-        setIsTorqueClaim(true);
-        return;
-      }
-      setTorqueClaimOfferId(null);
-    }
-
-    // Search by title
-    if (offers) {
-      const zombieOffer = offers.find(
-        (o) => o.metadata?.title?.includes('ZombieYield')
-      );
-
-      if (zombieOffer) {
-        setOfferId(zombieOffer.id);
-        setTorqueClaimOfferId(zombieOffer.id);
-        setIsTorqueClaim(true);
-        return;
-      }
-
-      // No existing offer found — try to create one with multi-step requirements
-      setupAttempted.current = true;
-
+  /**
+   * Create the ZombieYield offer with projectId
+   */
+  const createZombieOffer = useCallback(
+    (pid: string) => {
       const now = new Date();
       const oneYearFromNow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       createOfferMutation.mutate({
+        projectId: pid,
         metadata: {
           title: ZOMBIE_OFFER_TITLE,
           description: 'Scan your wallet for zombie Solana assets and claim daily point rewards. Hold 3+ zombie assets to qualify.',
@@ -197,8 +194,64 @@ export function useZombieClaim() {
           },
         ],
       } as any);
+    },
+    [createOfferMutation]
+  );
+
+  // When project is created, proceed to create the offer
+  useEffect(() => {
+    if (projectId && !offerId && !createOfferMutation.isPending && isAuthenticated) {
+      // Check if we already attempted offer creation
+      if (setupAttempted.current) return;
+      setupAttempted.current = true;
+      createZombieOffer(projectId);
     }
-  }, [isAuthenticated, offers, offersLoading, torqueClaimOfferId, setTorqueClaimOfferId, createOfferMutation]);
+  }, [projectId, offerId, createOfferMutation.isPending, isAuthenticated, createZombieOffer]);
+
+  // Find existing offer or initiate project + offer creation
+  useEffect(() => {
+    if (!isAuthenticated || offersLoading || setupAttempted.current) return;
+
+    // If we already have a cached offer ID, verify it still exists
+    if (torqueClaimOfferId && offers) {
+      const found = offers.find((o) => o.id === torqueClaimOfferId);
+      if (found) {
+        setOfferId(torqueClaimOfferId);
+        setIsTorqueClaim(true);
+        return;
+      }
+      setTorqueClaimOfferId(null);
+    }
+
+    // Search by title
+    if (offers) {
+      const zombieOffer = offers.find(
+        (o) => o.metadata?.title?.includes('ZombieYield')
+      );
+
+      if (zombieOffer) {
+        setOfferId(zombieOffer.id);
+        setTorqueClaimOfferId(zombieOffer.id);
+        setIsTorqueClaim(true);
+        return;
+      }
+
+      // No existing offer found — need a project first for custom events
+      if (projectId) {
+        // Already have a project, create the offer directly
+        setupAttempted.current = true;
+        createZombieOffer(projectId);
+      } else {
+        // Create the project first, offer creation will follow via useEffect
+        console.log('[ZombieClaim] Creating Torque project for custom events...');
+        createProjectMutation.mutate({
+          name: ZOMBIE_PROJECT_NAME,
+          description: 'ZombieYield — Resurrect your dead Solana bags and earn daily point rewards.',
+          website: 'https://zombieyield.vercel.app',
+        } as any);
+      }
+    }
+  }, [isAuthenticated, offers, offersLoading, torqueClaimOfferId, setTorqueClaimOfferId, projectId, createZombieOffer, createProjectMutation]);
 
   /**
    * Fire the zombie_scan_complete custom event (requirement index 0)
@@ -267,6 +320,7 @@ export function useZombieClaim() {
     claimViaTorque,
     fireScanEvent,
     torqueOfferId: offerId,
+    torqueProjectId: projectId,
     journeyStatus,
     journey,
     isTorqueClaim,
