@@ -18,6 +18,7 @@ import { ClaimButton } from './ClaimButton';
 import { TorqueOffersSection } from './TorqueOffersSection';
 import { TorqueUserProfile } from './TorqueUserProfile';
 import { ClaimHistory } from './ClaimHistory';
+import { useZombieClaim } from '../hooks/useZombieClaim';
 
 /**
  * Format time ago from timestamp
@@ -38,7 +39,8 @@ function formatTimeAgo(timestamp: number | null): string {
  */
 export function ZombieDashboard() {
   const { connected, publicKey } = useWallet();
-  const { loading: scanning, zombieAssets, totalFound, error: scanError, refetch, lastScanTime, isDevMode } = useScanner();
+  const { loading: scanning, zombieAssets, totalFound, error: scanError, refetch, lastScanTime, isDevMode, scanComplete } = useScanner();
+  const { fireScanEvent } = useZombieClaim();
 
   // Points state from rewards adapter
   const [pointsData, setPointsData] = useState<UserPointsData | null>(null);
@@ -89,6 +91,13 @@ export function ZombieDashboard() {
       fetchPoints();
     }
   }, [connected, publicKey, totalFound, walletConnectedAt, fetchPoints]);
+
+  // Fire Torque scan event when 3+ zombie assets found
+  useEffect(() => {
+    if (scanComplete && totalFound >= 3) {
+      fireScanEvent(totalFound);
+    }
+  }, [scanComplete, totalFound, fireScanEvent]);
 
   // Handle manual refresh
   const handleRefresh = async () => {

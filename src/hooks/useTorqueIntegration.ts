@@ -19,6 +19,8 @@ import {
   useCurrentUser,
   useSocialConnect,
   useCreateOffer,
+  useAddDistributor,
+  useDeployDistributor,
 } from '@torque-labs/react';
 
 /**
@@ -108,6 +110,26 @@ export function useTorqueIntegration(activeOfferId?: string, activeActionIndex?:
     },
     onError: (error) => {
       console.warn('[Torque] Failed to create offer:', error.message);
+    },
+  });
+
+  // Add distributor to an offer
+  const addDistributorMutation = useAddDistributor({
+    onSuccess: (data) => {
+      console.log('[Torque] Distributor added:', data.id);
+    },
+    onError: (error) => {
+      console.warn('[Torque] Distributor add failed:', error.message);
+    },
+  });
+
+  // Deploy a distributor on-chain
+  const deployDistributorMutation = useDeployDistributor({
+    onSuccess: (data) => {
+      console.log('[Torque] Distributor deployed:', data.signature);
+    },
+    onError: (error) => {
+      console.warn('[Torque] Distributor deploy failed:', error.message);
     },
   });
 
@@ -202,6 +224,10 @@ export function useTorqueIntegration(activeOfferId?: string, activeActionIndex?:
 
     // Create offer
     createOffer: createOfferMutation,
+
+    // Distributors
+    addDistributor: addDistributorMutation,
+    deployDistributor: deployDistributorMutation,
 
     // General
     isLoading,

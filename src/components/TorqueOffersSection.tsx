@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useTorqueIntegration } from '../hooks/useTorqueIntegration';
+import { useZombieClaim } from '../hooks/useZombieClaim';
 
 const PAGE_SIZE = 4;
 
@@ -32,6 +33,14 @@ export function TorqueOffersSection() {
     completeAction,
     executeActionPending,
   } = useTorqueIntegration(selectedOfferId ?? undefined);
+
+  const {
+    torqueOfferId: zombieOfferId,
+    journeyStatus: zombieJourneyStatus,
+    journey: zombieJourney,
+    isTorqueClaim,
+    scanEventFired,
+  } = useZombieClaim();
 
   // Track if Torque auth has been loading too long (stuck)
   const authTimedOut = useRef(false);
@@ -98,17 +107,25 @@ export function TorqueOffersSection() {
     );
   }
 
-  // No offers
+  // No offers — still show ZombieYield campaign
   if (offers.length === 0) {
     return (
       <section>
         <SectionHeader badge="Connected" />
-        <div className="rounded-xl border border-zombie-green/20 bg-zombie-dark/50 p-8 text-center">
-          <p className="text-gray-400">No active campaigns right now. Check back later!</p>
-        </div>
+        <ZombieYieldCampaignCard
+          journeyStatus={zombieJourneyStatus}
+          journey={zombieJourney}
+          isTorqueClaim={isTorqueClaim}
+          scanEventFired={scanEventFired}
+        />
       </section>
     );
   }
+
+  // Check if ZombieYield offer is already in the live offers list
+  const zombieOfferInList = offers.some(
+    (o) => o.id === zombieOfferId || o.metadata?.title?.includes('ZombieYield')
+  );
 
   const totalPages = Math.ceil(offers.length / PAGE_SIZE);
   const pagedOffers = offers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -116,6 +133,16 @@ export function TorqueOffersSection() {
   return (
     <section>
       <SectionHeader count={offers.length} />
+
+      {/* ZombieYield Campaign Card — always visible when authenticated */}
+      {!zombieOfferInList && (
+        <ZombieYieldCampaignCard
+          journeyStatus={zombieJourneyStatus}
+          journey={zombieJourney}
+          isTorqueClaim={isTorqueClaim}
+          scanEventFired={scanEventFired}
+        />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {pagedOffers.map((offer) => {
@@ -348,6 +375,103 @@ export function TorqueOffersSection() {
         </div>
       )}
     </section>
+  );
+}
+
+function ZombieYieldCampaignCard({
+  journeyStatus,
+  isTorqueClaim,
+  scanEventFired,
+}: {
+  journeyStatus: string | null;
+  journey: any;
+  isTorqueClaim: boolean;
+  scanEventFired: boolean;
+}) {
+  const requirements = [
+    { label: 'Scan 3+ zombie assets', type: 'CUSTOM', done: scanEventFired },
+    { label: 'Claim daily rewards', type: 'CLAIM', done: journeyStatus === 'DONE' },
+  ];
+
+  const doneSteps = requirements.filter((r) => r.done).length;
+  const progressPct = (doneSteps / requirements.length) * 100;
+
+  return (
+    <div className="rounded-xl border border-zombie-green/40 bg-zombie-green/5 p-5 mb-4">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-white">ZombieYield Daily Rewards</h3>
+            <span className="px-1.5 py-0.5 text-[10px] rounded bg-zombie-green/30 text-zombie-green font-mono">
+              {isTorqueClaim ? 'TORQUE' : 'LOCAL'}
+            </span>
+          </div>
+          <p className="text-sm text-gray-400 mt-1">
+            Scan your wallet for zombie Solana assets and claim daily point rewards. Hold 3+ zombie assets to qualify.
+          </p>
+        </div>
+        <span className="ml-2 px-2 py-1 text-xs rounded-lg bg-zombie-green/20 text-zombie-green whitespace-nowrap">
+          POINTS
+        </span>
+      </div>
+
+      {/* Requirements */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {requirements.map((req, idx) => (
+          <span
+            key={idx}
+            className={`px-2 py-0.5 text-xs rounded-md border ${
+              req.done
+                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                : 'bg-zombie-dark/80 border-zombie-green/10 text-gray-400'
+            }`}
+          >
+            {req.done ? '\u2713 ' : ''}{req.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Reward info */}
+      <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+        <span>2 requirements</span>
+        <span>1 reward</span>
+        <span className="text-zombie-green font-mono">10 POINTS / claim</span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between text-xs mb-1.5">
+          <span className="text-gray-400">Progress</span>
+          <span className={`font-mono ${
+            journeyStatus === 'DONE' ? 'text-green-400' : 'text-zombie-green'
+          }`}>
+            {doneSteps}/{requirements.length}{journeyStatus === 'DONE' ? ' Complete' : ''}
+          </span>
+        </div>
+        <div className="w-full h-2 rounded-full bg-zombie-gray overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${
+              journeyStatus === 'DONE' ? 'bg-green-400' : 'bg-zombie-green'
+            }`}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Status button */}
+      <div className={`w-full py-2.5 rounded-lg font-semibold text-sm text-center ${
+        journeyStatus === 'DONE'
+          ? 'bg-green-500/20 text-green-400 border border-green-500/40'
+          : 'bg-zombie-green/20 text-zombie-green border border-zombie-green/40'
+      }`}>
+        {journeyStatus === 'DONE'
+          ? 'Completed'
+          : doneSteps > 0
+          ? 'In Progress — Claim below'
+          : 'Scan assets to begin'}
+      </div>
+    </div>
   );
 }
 

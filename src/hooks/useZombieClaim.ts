@@ -1,10 +1,11 @@
 /**
  * useZombieClaim Hook
  *
- * Wires the ZombieYield claim flow through Torque SDK.
- * Finds or creates a ZombieYield-specific offer, then routes claims
- * through Torque's journey system. Falls back to local claims if
- * Torque is unavailable.
+ * Wires the ZombieYield claim flow through Torque SDK with:
+ * - Multi-step requirements (scan 3+ zombie assets + claim)
+ * - POINTS distributor for real reward distribution
+ * - Custom event firing on scan completion
+ * - Graceful local fallback
  *
  * @module hooks/useZombieClaim
  */
@@ -14,24 +15,25 @@ import {
   useTorque,
   useOffers,
   useStartOffer,
-  useOfferAction,
   useOfferJourney,
   useCreateOffer,
+  useAddDistributor,
 } from '@torque-labs/react';
 import { rewardsClient } from '../lib/rewards';
 import { useAppStore } from '../store/appStore';
 import type { ClaimResult } from '../lib/rewards/rewardsAdapter';
 
-const ZOMBIE_OFFER_TITLE = 'ZombieYield Daily Claim';
+const ZOMBIE_OFFER_TITLE = 'ZombieYield Daily Rewards';
 
 export function useZombieClaim() {
-  const { isAuthenticated } = useTorque();
+  const { isAuthenticated, torque } = useTorque();
   const { torqueClaimOfferId, setTorqueClaimOfferId } = useAppStore();
 
   const [offerId, setOfferId] = useState<string | null>(torqueClaimOfferId);
   const [isTorqueClaim, setIsTorqueClaim] = useState(false);
   const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [scanEventFired, setScanEventFired] = useState(false);
   const setupAttempted = useRef(false);
 
   // Fetch active offers to find our ZombieYield offer
@@ -43,7 +45,17 @@ export function useZombieClaim() {
     enabled: isAuthenticated,
   });
 
-  // Create offer mutation
+  // Add distributor mutation
+  const addDistributorMutation = useAddDistributor({
+    onSuccess: (data) => {
+      console.log('[ZombieClaim] POINTS distributor added:', data.id);
+    },
+    onError: (error) => {
+      console.warn('[ZombieClaim] Distributor add failed:', error.message);
+    },
+  });
+
+  // Create offer mutation — on success, add POINTS distributor
   const createOfferMutation = useCreateOffer({
     onSuccess: (data) => {
       console.log('[ZombieClaim] Created ZombieYield offer:', data.id);
@@ -51,6 +63,34 @@ export function useZombieClaim() {
       setTorqueClaimOfferId(data.id);
       setIsTorqueClaim(true);
       setFallbackReason(null);
+
+      // Attach POINTS distributor to the offer
+      addDistributorMutation.mutate({
+        offerId: data.id,
+        distributor: {
+          type: 'CONVERSION',
+          emissionType: 'POINTS',
+          totalFundAmount: 100000,
+          distributionFunction: {
+            type: 'CONSTANT',
+            yIntercept: 10,
+          },
+          crankGuard: {
+            recipient: 'USER',
+            activation: {
+              type: 'OFFER_START' as any,
+            },
+            distributionFunctionInput: {
+              type: 'CONVERSION_INDEX' as any,
+            },
+            availability: {
+              maxConversionsPerRecipient: 1,
+              recipientConversionPeriod: 'DAILY' as any,
+              maxTotalConversions: null,
+            },
+          },
+        } as any,
+      });
     },
     onError: (error) => {
       console.warn('[ZombieClaim] Failed to create offer:', error.message);
@@ -61,19 +101,6 @@ export function useZombieClaim() {
 
   // Start offer mutation
   const { mutateAsync: startOfferAsync } = useStartOffer();
-
-  // Offer action (for executing the claim)
-  const { executeAction } = useOfferAction({
-    offerId: offerId ?? '',
-    index: 0,
-    enabled: isAuthenticated && !!offerId,
-    onSuccess: (signature) => {
-      console.log('[ZombieClaim] Claim action executed:', signature);
-    },
-    onError: (error) => {
-      console.warn('[ZombieClaim] Claim action failed:', error.message);
-    },
-  });
 
   // Journey tracking
   const {
@@ -99,7 +126,6 @@ export function useZombieClaim() {
         setIsTorqueClaim(true);
         return;
       }
-      // Cached ID is stale
       setTorqueClaimOfferId(null);
     }
 
@@ -116,7 +142,7 @@ export function useZombieClaim() {
         return;
       }
 
-      // No existing offer found — try to create one
+      // No existing offer found — try to create one with multi-step requirements
       setupAttempted.current = true;
 
       const now = new Date();
@@ -125,31 +151,67 @@ export function useZombieClaim() {
       createOfferMutation.mutate({
         metadata: {
           title: ZOMBIE_OFFER_TITLE,
-          description: 'Claim daily rewards from your zombie Solana assets. Powered by Torque.',
+          description: 'Scan your wallet for zombie Solana assets and claim daily point rewards. Hold 3+ zombie assets to qualify.',
         },
         startTime: now,
         endTime: oneYearFromNow,
-        requirements: [{
-          type: 'CLAIM' as any,
-          config: {
-            claim: { type: 'boolean' as const, exact: true },
+        requirements: [
+          // Step 1: Scan and find 3+ zombie assets (CUSTOM event)
+          {
+            type: 'CUSTOM' as any,
+            config: {
+              eventName: 'zombie_scan_complete',
+              fields: [{
+                fieldName: 'assetsFound',
+                validation: { type: 'number', min: 3 },
+              }],
+            },
+            oracle: 'CUSTOM_EVENT_PROVIDER' as const,
           },
-          oracle: 'CUSTOM_EVENT_PROVIDER' as const,
-        }],
+          // Step 2: Claim daily rewards
+          {
+            type: 'CLAIM' as any,
+            config: {
+              claim: { type: 'boolean' as const, exact: true },
+            },
+            oracle: 'CUSTOM_EVENT_PROVIDER' as const,
+          },
+        ],
       } as any);
     }
   }, [isAuthenticated, offers, offersLoading, torqueClaimOfferId, setTorqueClaimOfferId, createOfferMutation]);
 
   /**
+   * Fire the zombie_scan_complete custom event (requirement index 0)
+   * Called when the scanner finds 3+ zombie assets
+   */
+  const fireScanEvent = useCallback(
+    async (assetsFound: number) => {
+      if (!offerId || !isAuthenticated || assetsFound < 3 || scanEventFired) return;
+
+      try {
+        // Execute action at index 0 (zombie_scan_complete requirement)
+        await torque.offers.actions.executeAction(offerId, 0);
+        setScanEventFired(true);
+        console.log('[ZombieClaim] Scan event fired: %d assets found', assetsFound);
+      } catch (e) {
+        // Expected to fail if offer doesn't exist on Torque or no journey started
+        console.warn('[ZombieClaim] Scan event fire failed (expected if no journey):', e);
+      }
+    },
+    [offerId, isAuthenticated, scanEventFired, torque]
+  );
+
+  /**
    * Execute a claim — routes through Torque if available, otherwise local
+   * Uses action index 1 (CLAIM requirement) for the two-step journey
    */
   const claimViaTorque = useCallback(
-    async (wallet: string, _points: number): Promise<ClaimResult> => {
+    async (wallet: string, points: number): Promise<ClaimResult> => {
       setClaiming(true);
 
       try {
         if (isTorqueClaim && offerId) {
-          // Route through Torque
           try {
             // Start the offer journey
             await startOfferAsync({ offerId });
@@ -157,24 +219,20 @@ export function useZombieClaim() {
             // Small delay to let journey initialize
             await new Promise((resolve) => setTimeout(resolve, 300));
 
-            // Execute the claim action
-            const signature = await executeAction.mutateAsync({
-              offerId,
-              index: 0,
-            });
+            // Execute the claim action at index 1 (second requirement)
+            const signature = await torque.offers.actions.executeAction(offerId, 1);
 
             // Refetch journey to confirm status
             refetchJourney();
 
             return {
               success: true,
-              claimedAmount: _points,
+              claimedAmount: points,
               transactionSignature: signature || `torque_${Date.now()}`,
               timestamp: Date.now(),
             };
           } catch (torqueError) {
             console.warn('[ZombieClaim] Torque claim failed, falling back:', torqueError);
-            // Fall back to local
             const result = await rewardsClient.claimRewards(wallet);
             return { ...result, transactionSignature: result.transactionSignature || `fallback_${Date.now()}` };
           }
@@ -186,15 +244,18 @@ export function useZombieClaim() {
         setClaiming(false);
       }
     },
-    [isTorqueClaim, offerId, startOfferAsync, executeAction, refetchJourney]
+    [isTorqueClaim, offerId, startOfferAsync, torque, refetchJourney]
   );
 
   return {
     claimViaTorque,
+    fireScanEvent,
     torqueOfferId: offerId,
     journeyStatus,
+    journey,
     isTorqueClaim,
     fallbackReason,
     claiming,
+    scanEventFired,
   };
 }
