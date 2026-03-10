@@ -17,7 +17,11 @@ export function LandingPage() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-xl bg-zombie-green/20 flex items-center justify-center border border-zombie-green/50">
-                <span className="text-2xl">🧟</span>
+                <img
+                  src="/image.png"
+                  alt="ZombieYield logo"
+                  className="w-7 h-7 object-contain"
+                />
               </div>
               <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-zombie-green rounded-full" style={{ boxShadow: '0 0 8px rgba(57,255,20,0.6)' }} />
             </div>
@@ -189,7 +193,11 @@ export function LandingPage() {
       <section className="py-24 px-6 border-t border-zombie-green/10">
         <div className="max-w-2xl mx-auto text-center">
           <div className="w-20 h-20 rounded-2xl bg-zombie-green/10 border border-zombie-green/30 flex items-center justify-center mx-auto mb-8" style={{ boxShadow: '0 0 40px rgba(57,255,20,0.15)' }}>
-            <span className="text-4xl">🧟</span>
+            <img
+              src="/image.png"
+              alt="ZombieYield logo"
+              className="w-12 h-12 object-contain"
+            />
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
             Ready to earn from your <span className="text-zombie-green">dead bags</span>?

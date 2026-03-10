@@ -113,7 +113,11 @@ export function ZombieDashboard() {
               animate-pulse
             "
           >
-            <span className="text-5xl">🧟</span>
+            <img
+              src="/image.png"
+              alt="ZombieYield logo"
+              className="w-14 h-14 object-contain"
+            />
           </div>
 
           <h2 className="text-3xl font-bold text-white mb-4">

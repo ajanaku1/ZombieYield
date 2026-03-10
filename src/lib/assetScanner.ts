@@ -11,6 +11,20 @@ import { PublicKey, Connection } from '@solana/web3.js';
 import type { ZombieAsset } from '../types';
 import { zombieTokenSet, getTokenMetadata } from '../config/zombieAllowlist';
 
+function toBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+  return new Uint8Array(data);
+}
+
+function readU64LE(data: Uint8Array, offset: number): bigint {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const lo = BigInt(view.getUint32(offset, true));
+  const hi = BigInt(view.getUint32(offset + 4, true));
+  return (hi << 32n) + lo;
+}
+
 /**
  * Scan wallet for zombie tokens (fungible)
  * @deprecated Use useScanner hook instead
@@ -31,10 +45,10 @@ export async function scanZombieTokens(
 
     // Check each token account against allowlist
     for (const { account } of tokenAccounts.value) {
-      const data = Buffer.from(account.data);
+      const data = toBytes(account.data);
       const mint = new PublicKey(data.slice(0, 32)).toString();
-      const amount = data.readBigUInt64LE(64);
-      const decimals = data.readUInt8(44);
+      const amount = readU64LE(data, 64);
+      const decimals = data[44] ?? 0;
 
       if (zombieTokenSet.has(mint.toLowerCase()) && amount > 0n) {
         const metadata = getTokenMetadata(mint);

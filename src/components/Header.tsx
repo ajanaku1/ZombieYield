@@ -14,7 +14,11 @@ export function Header() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-xl bg-zombie-green/20 flex items-center justify-center border border-zombie-green/50">
-                <span className="text-2xl">🧟</span>
+                <img
+                  src="/image.png"
+                  alt="ZombieYield logo"
+                  className="w-7 h-7 object-contain"
+                />
               </div>
               <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-zombie-green rounded-full shadow-neon" />
             </div>

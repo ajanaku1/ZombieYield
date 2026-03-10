@@ -58,16 +58,30 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 /**
  * Parse SPL token account data
  */
-function parseTokenAccountData(data: Buffer): {
+function parseTokenAccountData(data: Uint8Array): {
   mint: PublicKey;
   amount: bigint;
   decimals: number;
 } {
   const mint = new PublicKey(data.slice(0, 32));
-  const amount = data.readBigUInt64LE(64);
-  const decimals = data.readUInt8(44);
+  const amount = readU64LE(data, 64);
+  const decimals = data[44] ?? 0;
 
   return { mint, amount, decimals };
+}
+
+function toBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+  return new Uint8Array(data);
+}
+
+function readU64LE(data: Uint8Array, offset: number): bigint {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const lo = BigInt(view.getUint32(offset, true));
+  const hi = BigInt(view.getUint32(offset + 4, true));
+  return (hi << 32n) + lo;
 }
 
 /**
@@ -339,8 +353,8 @@ async function scanNfts(
     // Collect NFT mints (amount === 1)
     const nftMints: PublicKey[] = [];
     for (const { account } of tokenAccounts.value) {
-      const data = Buffer.from(account.data);
-      const amount = data.readBigUInt64LE(64);
+      const data = toBytes(account.data);
+      const amount = readU64LE(data, 64);
       
       if (amount === 1n) {
         const mint = new PublicKey(data.slice(0, 32));
@@ -579,7 +593,7 @@ export function useScanner(): ScannerResult {
       );
 
       for (const { account } of tokenAccounts.value) {
-        const data = Buffer.from(account.data);
+        const data = toBytes(account.data);
         const { mint, amount, decimals } = parseTokenAccountData(data);
 
         const mintAddress = mint.toString();
@@ -703,7 +717,7 @@ export function useScanner(): ScannerResult {
       );
 
       for (const { account } of tokenAccounts.value) {
-        const data = Buffer.from(account.data);
+        const data = toBytes(account.data);
         const { mint, amount, decimals } = parseTokenAccountData(data);
         const mintAddress = mint.toString();
 
