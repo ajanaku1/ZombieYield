@@ -456,7 +456,7 @@ async function scanNfts(
 function shouldFilterToken(
   amount: bigint,
   _mint: PublicKey,
-  _data: Buffer
+  _data: Uint8Array
 ): boolean {
   // Filter zero balances
   if (amount === 0n) return true;
